@@ -1,0 +1,20 @@
+{
+  "name": "C++ Dev Container",
+
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "dev",
+
+  "workspaceFolder": "/workspace",
+
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/bash"
+  },
+
+  "extensions": [
+    "ms-vscode.cpptools"
+  ],
+
+  "postCreateCommand": "bash .devcontainer/setup-vcpkg.sh && echo 'export CMAKE_PREFIX_PATH=/workspace/vcpkg/installed/x64-linux/share:$CMAKE_PREFIX_PATH' >> ~/.bashrc",
+
+  "forwardPorts": [5432]
+}

@@ -1,0 +1,6 @@
+/vcpkg/
+/build/
+/CMakeFiles/
+/CMakeCache.txt
+/quickfix/
+.env

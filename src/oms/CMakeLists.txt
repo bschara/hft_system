@@ -1,0 +1,2 @@
+add_library(OrderManagementSystem order_management_system.cpp)
+target_include_directories(OrderManagementSystem PUBLIC ${PROJECT_SOURCE_DIR}/include)

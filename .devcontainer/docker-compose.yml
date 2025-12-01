@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  dev:
+    build: .
+    volumes:
+      - ..:/workspace:cached
+    command: sleep infinity
+    depends_on:
+      - timescaledb
+    environment:
+      - PGHOST=timescaledb
+      - PGUSER=dev
+      - PGPASSWORD=devpass
+      - PGDATABASE=devdb
+    working_dir: /workspace
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=dev
+      - POSTGRES_PASSWORD=devpass
+      - POSTGRES_DB=devdb
+    volumes:
+      - timescale-data:/var/lib/postgresql/data
+
+volumes:
+  timescale-data:

@@ -1,0 +1,393 @@
+2025.07.22 07:52:55 LOG7[ui]: Clients allowed=512000
+2025.07.22 07:52:55 LOG5[ui]: stunnel 5.56 on x86_64-pc-linux-gnu platform
+2025.07.22 07:52:55 LOG5[ui]: Compiled/running with OpenSSL 1.1.1f  31 Mar 2020
+2025.07.22 07:52:55 LOG5[ui]: Threading:PTHREAD Sockets:POLL,IPv6,SYSTEMD TLS:ENGINE,FIPS,OCSP,PSK,SNI Auth:LIBWRAP
+2025.07.22 07:52:55 LOG7[ui]: errno: (*__errno_location ())
+2025.07.22 07:52:55 LOG5[ui]: Reading configuration from file /workspace/fix_oe.conf
+2025.07.22 07:52:55 LOG5[ui]: UTF-8 byte order mark not detected
+2025.07.22 07:52:55 LOG5[ui]: FIPS mode disabled
+2025.07.22 07:52:55 LOG7[ui]: Compression disabled
+2025.07.22 07:52:55 LOG7[ui]: No PRNG seeding was required
+2025.07.22 07:52:55 LOG6[ui]: Initializing service [binance-fix]
+2025.07.22 07:52:55 LOG7[ui]: Ciphers: HIGH:!aNULL:!SSLv2:!DH:!kDHEPSK
+2025.07.22 07:52:55 LOG7[ui]: TLSv1.3 ciphersuites: TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256
+2025.07.22 07:52:55 LOG7[ui]: TLS options: 0x02100004 (+0x00000000, -0x00000000)
+2025.07.22 07:52:55 LOG7[ui]: No certificate or private key specified
+2025.07.22 07:52:55 LOG4[ui]: Service [binance-fix] needs authentication to prevent MITM attacks
+2025.07.22 07:52:55 LOG5[ui]: Configuration successful
+2025.07.22 07:52:55 LOG7[ui]: Binding service [binance-fix]
+2025.07.22 07:52:55 LOG7[ui]: Listening file descriptor created (FD=8)
+2025.07.22 07:52:55 LOG7[ui]: Setting accept socket options (FD=8)
+2025.07.22 07:52:55 LOG7[ui]: Option SO_REUSEADDR set on accept socket
+2025.07.22 07:52:55 LOG6[ui]: Service [binance-fix] (FD=8) bound to 127.0.0.1:6000
+2025.07.22 07:52:55 LOG3[ui]: Cannot create pid file /var/run/stunnel4.pid
+2025.07.22 07:52:55 LOG3[ui]: create: Permission denied (13)
+2025.07.22 07:52:55 LOG7[ui]: Deallocating section defaults
+2025.07.22 07:53:23 LOG7[ui]: Clients allowed=512000
+2025.07.22 07:53:23 LOG5[ui]: stunnel 5.56 on x86_64-pc-linux-gnu platform
+2025.07.22 07:53:23 LOG5[ui]: Compiled/running with OpenSSL 1.1.1f  31 Mar 2020
+2025.07.22 07:53:23 LOG5[ui]: Threading:PTHREAD Sockets:POLL,IPv6,SYSTEMD TLS:ENGINE,FIPS,OCSP,PSK,SNI Auth:LIBWRAP
+2025.07.22 07:53:23 LOG7[ui]: errno: (*__errno_location ())
+2025.07.22 07:53:23 LOG5[ui]: Reading configuration from file /workspace/fix_oe.conf
+2025.07.22 07:53:23 LOG5[ui]: UTF-8 byte order mark not detected
+2025.07.22 07:53:23 LOG5[ui]: FIPS mode disabled
+2025.07.22 07:53:23 LOG7[ui]: Compression disabled
+2025.07.22 07:53:23 LOG7[ui]: No PRNG seeding was required
+2025.07.22 07:53:23 LOG6[ui]: Initializing service [binance-fix]
+2025.07.22 07:53:23 LOG7[ui]: Ciphers: HIGH:!aNULL:!SSLv2:!DH:!kDHEPSK
+2025.07.22 07:53:23 LOG7[ui]: TLSv1.3 ciphersuites: TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256
+2025.07.22 07:53:23 LOG7[ui]: TLS options: 0x02100004 (+0x00000000, -0x00000000)
+2025.07.22 07:53:23 LOG7[ui]: No certificate or private key specified
+2025.07.22 07:53:23 LOG4[ui]: Service [binance-fix] needs authentication to prevent MITM attacks
+2025.07.22 07:53:23 LOG5[ui]: Configuration successful
+2025.07.22 07:53:23 LOG7[ui]: Binding service [binance-fix]
+2025.07.22 07:53:23 LOG7[ui]: Listening file descriptor created (FD=8)
+2025.07.22 07:53:23 LOG7[ui]: Setting accept socket options (FD=8)
+2025.07.22 07:53:23 LOG7[ui]: Option SO_REUSEADDR set on accept socket
+2025.07.22 07:53:23 LOG6[ui]: Service [binance-fix] (FD=8) bound to 127.0.0.1:6000
+2025.07.22 07:53:23 LOG7[ui]: Created pid file /var/run/stunnel4.pid
+2025.07.22 07:53:23 LOG7[cron]: Cron thread initialized
+2025.07.22 07:53:23 LOG6[cron]: Executing cron jobs
+2025.07.22 07:53:23 LOG6[cron]: Cron jobs completed in 0 seconds
+2025.07.22 07:53:23 LOG7[cron]: Waiting 86400 seconds
+2025.07.22 07:53:44 LOG7[ui]: Found 1 ready file descriptor(s)
+2025.07.22 07:53:44 LOG7[ui]: FD=4 events=0x2001 revents=0x0
+2025.07.22 07:53:44 LOG7[ui]: FD=8 events=0x2001 revents=0x1
+2025.07.22 07:53:44 LOG7[ui]: Service [binance-fix] accepted (FD=3) from 127.0.0.1:46518
+2025.07.22 07:53:44 LOG7[0]: Service [binance-fix] started
+2025.07.22 07:53:44 LOG7[0]: Setting local socket options (FD=3)
+2025.07.22 07:53:44 LOG7[0]: Option TCP_NODELAY set on local socket
+2025.07.22 07:53:44 LOG5[0]: Service [binance-fix] accepted connection from 127.0.0.1:46518
+2025.07.22 07:53:44 LOG6[0]: s_connect: connecting 52.196.126.248:9000
+2025.07.22 07:53:44 LOG7[0]: s_connect: s_poll_wait 52.196.126.248:9000: waiting 10 seconds
+2025.07.22 07:53:44 LOG7[0]: FD=6 events=0x2001 revents=0x0
+2025.07.22 07:53:44 LOG7[0]: FD=10 events=0x2005 revents=0x0
+2025.07.22 07:53:45 LOG5[0]: s_connect: connected 52.196.126.248:9000
+2025.07.22 07:53:45 LOG5[0]: Service [binance-fix] connected remote server from 172.17.0.2:52638
+2025.07.22 07:53:45 LOG7[0]: Setting remote socket options (FD=10)
+2025.07.22 07:53:45 LOG7[0]: Option TCP_NODELAY set on remote socket
+2025.07.22 07:53:45 LOG7[0]: Remote descriptor (FD=10) initialized
+2025.07.22 07:53:45 LOG6[0]: SNI: sending servername: fix-oe.binance.com
+2025.07.22 07:53:45 LOG6[0]: Peer certificate not required
+2025.07.22 07:53:45 LOG7[0]: TLS state (connect): before SSL initialization
+2025.07.22 07:53:45 LOG7[0]: Initializing application specific data for session authenticated
+2025.07.22 07:53:45 LOG7[0]: TLS state (connect): SSLv3/TLS write client hello
+2025.07.22 07:53:45 LOG7[0]: TLS state (connect): SSLv3/TLS write client hello
+2025.07.22 07:53:45 LOG7[0]: TLS state (connect): SSLv3/TLS read server hello
+2025.07.22 07:53:45 LOG7[0]: TLS state (connect): TLSv1.3 read encrypted extensions
+2025.07.22 07:53:45 LOG6[0]: Certificate verification disabled
+2025.07.22 07:53:45 LOG6[0]: Certificate verification disabled
+2025.07.22 07:53:45 LOG6[0]: Certificate verification disabled
+2025.07.22 07:53:45 LOG6[0]: Certificate verification disabled
+2025.07.22 07:53:45 LOG7[0]: TLS state (connect): SSLv3/TLS read server certificate
+2025.07.22 07:53:45 LOG7[0]: TLS state (connect): TLSv1.3 read server certificate verify
+2025.07.22 07:53:45 LOG7[0]: TLS state (connect): SSLv3/TLS read finished
+2025.07.22 07:53:45 LOG7[0]: TLS state (connect): SSLv3/TLS write change cipher spec
+2025.07.22 07:53:45 LOG7[0]: TLS state (connect): SSLv3/TLS write finished
+2025.07.22 07:53:45 LOG7[0]:      1 client connect(s) requested
+2025.07.22 07:53:45 LOG7[0]:      1 client connect(s) succeeded
+2025.07.22 07:53:45 LOG7[0]:      0 client renegotiation(s) requested
+2025.07.22 07:53:45 LOG7[0]:      0 session reuse(s)
+2025.07.22 07:53:45 LOG6[0]: TLS connected: new session negotiated
+2025.07.22 07:53:45 LOG6[0]: TLSv1.3 ciphersuite: TLS_AES_128_GCM_SHA256 (128-bit encryption)
+2025.07.22 07:53:45 LOG7[0]: Compression: null, expansion: null
+2025.07.22 07:53:45 LOG7[0]: TLS state (connect): SSL negotiation finished successfully
+2025.07.22 07:53:45 LOG7[0]: TLS state (connect): SSL negotiation finished successfully
+2025.07.22 07:53:45 LOG7[0]: Initializing application specific data for session authenticated
+2025.07.22 07:53:45 LOG7[0]: Deallocating application specific data for session connect address
+2025.07.22 07:53:45 LOG7[0]: New session callback
+2025.07.22 07:53:45 LOG7[0]: Peer certificate was cached (5222 bytes)
+2025.07.22 07:53:45 LOG6[0]: Session id: 6BD046CBF3F2F949DB6243EDD8E7D9CDE7CEAEEFC00450448A8C5F29BA65648D
+2025.07.22 07:53:45 LOG7[0]: TLS state (connect): SSLv3/TLS read server session ticket
+2025.07.22 07:54:24 LOG7[0]: TLS alert (read): warning: close notify
+2025.07.22 07:54:24 LOG6[0]: TLS closed (SSL_read)
+2025.07.22 07:54:24 LOG7[0]: Sent socket write shutdown
+2025.07.22 07:54:24 LOG6[0]: Read socket closed (readsocket)
+2025.07.22 07:54:24 LOG7[0]: Sending close_notify alert
+2025.07.22 07:54:24 LOG7[0]: TLS alert (write): warning: close notify
+2025.07.22 07:54:24 LOG6[0]: SSL_shutdown successfully sent close_notify alert
+2025.07.22 07:54:24 LOG5[0]: Connection closed: 29 byte(s) sent to TLS, 0 byte(s) sent to socket
+2025.07.22 07:54:24 LOG7[0]: Remote descriptor (FD=10) closed
+2025.07.22 07:54:24 LOG7[0]: Local descriptor (FD=3) closed
+2025.07.22 07:54:24 LOG7[0]: Service [binance-fix] finished (0 left)
+2025.07.22 07:55:27 LOG7[ui]: Found 1 ready file descriptor(s)
+2025.07.22 07:55:27 LOG7[ui]: FD=4 events=0x2001 revents=0x0
+2025.07.22 07:55:27 LOG7[ui]: FD=8 events=0x2001 revents=0x1
+2025.07.22 07:55:27 LOG7[ui]: Service [binance-fix] accepted (FD=3) from 127.0.0.1:43472
+2025.07.22 07:55:27 LOG7[1]: Service [binance-fix] started
+2025.07.22 07:55:27 LOG7[1]: Setting local socket options (FD=3)
+2025.07.22 07:55:27 LOG7[1]: Option TCP_NODELAY set on local socket
+2025.07.22 07:55:27 LOG5[1]: Service [binance-fix] accepted connection from 127.0.0.1:43472
+2025.07.22 07:55:27 LOG6[1]: s_connect: connecting 52.196.126.248:9000
+2025.07.22 07:55:27 LOG7[1]: s_connect: s_poll_wait 52.196.126.248:9000: waiting 10 seconds
+2025.07.22 07:55:27 LOG7[1]: FD=6 events=0x2001 revents=0x0
+2025.07.22 07:55:27 LOG7[1]: FD=10 events=0x2005 revents=0x0
+2025.07.22 07:55:28 LOG5[1]: s_connect: connected 52.196.126.248:9000
+2025.07.22 07:55:28 LOG5[1]: Service [binance-fix] connected remote server from 172.17.0.2:45004
+2025.07.22 07:55:28 LOG7[1]: Setting remote socket options (FD=10)
+2025.07.22 07:55:28 LOG7[1]: Option TCP_NODELAY set on remote socket
+2025.07.22 07:55:28 LOG7[1]: Remote descriptor (FD=10) initialized
+2025.07.22 07:55:28 LOG6[1]: SNI: sending servername: fix-oe.binance.com
+2025.07.22 07:55:28 LOG6[1]: Peer certificate not required
+2025.07.22 07:55:28 LOG7[1]: TLS state (connect): before SSL initialization
+2025.07.22 07:55:28 LOG7[1]: TLS state (connect): SSLv3/TLS write client hello
+2025.07.22 07:55:28 LOG7[1]: TLS state (connect): SSLv3/TLS write client hello
+2025.07.22 07:55:28 LOG7[1]: TLS state (connect): SSLv3/TLS read server hello
+2025.07.22 07:55:28 LOG7[1]: TLS state (connect): TLSv1.3 read encrypted extensions
+2025.07.22 07:55:28 LOG7[1]: TLS state (connect): SSLv3/TLS read finished
+2025.07.22 07:55:28 LOG7[1]: TLS state (connect): SSLv3/TLS write change cipher spec
+2025.07.22 07:55:28 LOG7[1]: TLS state (connect): SSLv3/TLS write finished
+2025.07.22 07:55:28 LOG7[1]: Remove session callback
+2025.07.22 07:55:28 LOG7[1]:      2 client connect(s) requested
+2025.07.22 07:55:28 LOG7[1]:      2 client connect(s) succeeded
+2025.07.22 07:55:28 LOG7[1]:      0 client renegotiation(s) requested
+2025.07.22 07:55:28 LOG7[1]:      1 session reuse(s)
+2025.07.22 07:55:28 LOG6[1]: TLS connected: previous session reused
+2025.07.22 07:55:28 LOG6[1]: TLSv1.3 ciphersuite: TLS_AES_128_GCM_SHA256 (128-bit encryption)
+2025.07.22 07:55:28 LOG7[1]: Compression: null, expansion: null
+2025.07.22 07:55:28 LOG6[1]: Session id: 6BD046CBF3F2F949DB6243EDD8E7D9CDE7CEAEEFC00450448A8C5F29BA65648D
+2025.07.22 07:55:28 LOG7[1]: TLS state (connect): SSL negotiation finished successfully
+2025.07.22 07:55:28 LOG7[1]: TLS state (connect): SSL negotiation finished successfully
+2025.07.22 07:55:28 LOG7[1]: Initializing application specific data for session authenticated
+2025.07.22 07:55:28 LOG7[1]: New session callback
+2025.07.22 07:55:28 LOG7[1]: Deallocating application specific data for session connect address
+2025.07.22 07:55:28 LOG6[1]: Session id: 30EA4C9BEEE192ADCF02C47230095FD3F30567D6DF9BF472078AC2B5C07F5594
+2025.07.22 07:55:28 LOG7[1]: TLS state (connect): SSLv3/TLS read server session ticket
+2025.07.22 07:55:28 LOG7[1]: TLS alert (read): warning: close notify
+2025.07.22 07:55:28 LOG6[1]: TLS closed (SSL_read)
+2025.07.22 07:55:28 LOG7[1]: Sent socket write shutdown
+2025.07.22 07:55:28 LOG6[1]: Read socket closed (readsocket)
+2025.07.22 07:55:28 LOG7[1]: Sending close_notify alert
+2025.07.22 07:55:28 LOG7[1]: TLS alert (write): warning: close notify
+2025.07.22 07:55:28 LOG6[1]: SSL_shutdown successfully sent close_notify alert
+2025.07.22 07:55:28 LOG5[1]: Connection closed: 327 byte(s) sent to TLS, 0 byte(s) sent to socket
+2025.07.22 07:55:28 LOG7[1]: Remote descriptor (FD=10) closed
+2025.07.22 07:55:28 LOG7[1]: Local descriptor (FD=3) closed
+2025.07.22 07:55:28 LOG7[1]: Service [binance-fix] finished (0 left)
+2025.07.22 07:56:27 LOG7[ui]: Found 1 ready file descriptor(s)
+2025.07.22 07:56:27 LOG7[ui]: FD=4 events=0x2001 revents=0x0
+2025.07.22 07:56:27 LOG7[ui]: FD=8 events=0x2001 revents=0x1
+2025.07.22 07:56:27 LOG7[ui]: Service [binance-fix] accepted (FD=3) from 127.0.0.1:45542
+2025.07.22 07:56:27 LOG7[2]: Service [binance-fix] started
+2025.07.22 07:56:27 LOG7[2]: Setting local socket options (FD=3)
+2025.07.22 07:56:27 LOG7[2]: Option TCP_NODELAY set on local socket
+2025.07.22 07:56:27 LOG5[2]: Service [binance-fix] accepted connection from 127.0.0.1:45542
+2025.07.22 07:56:27 LOG6[2]: s_connect: connecting 52.196.126.248:9000
+2025.07.22 07:56:27 LOG7[2]: s_connect: s_poll_wait 52.196.126.248:9000: waiting 10 seconds
+2025.07.22 07:56:27 LOG7[2]: FD=6 events=0x2001 revents=0x0
+2025.07.22 07:56:27 LOG7[2]: FD=10 events=0x2005 revents=0x0
+2025.07.22 07:56:27 LOG5[2]: s_connect: connected 52.196.126.248:9000
+2025.07.22 07:56:27 LOG5[2]: Service [binance-fix] connected remote server from 172.17.0.2:56708
+2025.07.22 07:56:27 LOG7[2]: Setting remote socket options (FD=10)
+2025.07.22 07:56:27 LOG7[2]: Option TCP_NODELAY set on remote socket
+2025.07.22 07:56:27 LOG7[2]: Remote descriptor (FD=10) initialized
+2025.07.22 07:56:27 LOG6[2]: SNI: sending servername: fix-oe.binance.com
+2025.07.22 07:56:27 LOG6[2]: Peer certificate not required
+2025.07.22 07:56:27 LOG7[2]: TLS state (connect): before SSL initialization
+2025.07.22 07:56:27 LOG7[2]: TLS state (connect): SSLv3/TLS write client hello
+2025.07.22 07:56:27 LOG7[2]: TLS state (connect): SSLv3/TLS write client hello
+2025.07.22 07:56:27 LOG7[2]: TLS state (connect): SSLv3/TLS read server hello
+2025.07.22 07:56:27 LOG7[2]: TLS state (connect): TLSv1.3 read encrypted extensions
+2025.07.22 07:56:27 LOG7[2]: TLS state (connect): SSLv3/TLS read finished
+2025.07.22 07:56:27 LOG7[2]: TLS state (connect): SSLv3/TLS write change cipher spec
+2025.07.22 07:56:27 LOG7[2]: TLS state (connect): SSLv3/TLS write finished
+2025.07.22 07:56:27 LOG7[2]: Remove session callback
+2025.07.22 07:56:27 LOG7[2]:      3 client connect(s) requested
+2025.07.22 07:56:27 LOG7[2]:      3 client connect(s) succeeded
+2025.07.22 07:56:27 LOG7[2]:      0 client renegotiation(s) requested
+2025.07.22 07:56:27 LOG7[2]:      2 session reuse(s)
+2025.07.22 07:56:27 LOG6[2]: TLS connected: previous session reused
+2025.07.22 07:56:27 LOG6[2]: TLSv1.3 ciphersuite: TLS_AES_128_GCM_SHA256 (128-bit encryption)
+2025.07.22 07:56:27 LOG7[2]: Compression: null, expansion: null
+2025.07.22 07:56:27 LOG6[2]: Session id: 30EA4C9BEEE192ADCF02C47230095FD3F30567D6DF9BF472078AC2B5C07F5594
+2025.07.22 07:56:28 LOG7[2]: TLS state (connect): SSL negotiation finished successfully
+2025.07.22 07:56:28 LOG7[2]: TLS state (connect): SSL negotiation finished successfully
+2025.07.22 07:56:28 LOG7[2]: Initializing application specific data for session authenticated
+2025.07.22 07:56:28 LOG7[2]: New session callback
+2025.07.22 07:56:28 LOG7[2]: Deallocating application specific data for session connect address
+2025.07.22 07:56:28 LOG6[2]: Session id: DC7B5784A98155A1DEA77FAC35DA693E8A8DE163AD2F10CF2E82104F4A517B5F
+2025.07.22 07:56:28 LOG7[2]: TLS state (connect): SSLv3/TLS read server session ticket
+2025.07.22 07:56:28 LOG7[2]: TLS alert (read): warning: close notify
+2025.07.22 07:56:28 LOG6[2]: TLS closed (SSL_read)
+2025.07.22 07:56:28 LOG7[2]: Sent socket write shutdown
+2025.07.22 07:56:28 LOG6[2]: Read socket closed (readsocket)
+2025.07.22 07:56:28 LOG7[2]: Sending close_notify alert
+2025.07.22 07:56:28 LOG7[2]: TLS alert (write): warning: close notify
+2025.07.22 07:56:28 LOG6[2]: SSL_shutdown successfully sent close_notify alert
+2025.07.22 07:56:28 LOG5[2]: Connection closed: 327 byte(s) sent to TLS, 0 byte(s) sent to socket
+2025.07.22 07:56:28 LOG7[2]: Remote descriptor (FD=10) closed
+2025.07.22 07:56:28 LOG7[2]: Local descriptor (FD=3) closed
+2025.07.22 07:56:28 LOG7[2]: Service [binance-fix] finished (0 left)
+2025.07.22 07:57:27 LOG7[ui]: Found 1 ready file descriptor(s)
+2025.07.22 07:57:27 LOG7[ui]: FD=4 events=0x2001 revents=0x0
+2025.07.22 07:57:27 LOG7[ui]: FD=8 events=0x2001 revents=0x1
+2025.07.22 07:57:27 LOG7[ui]: Service [binance-fix] accepted (FD=3) from 127.0.0.1:49912
+2025.07.22 07:57:27 LOG7[3]: Service [binance-fix] started
+2025.07.22 07:57:27 LOG7[3]: Setting local socket options (FD=3)
+2025.07.22 07:57:27 LOG7[3]: Option TCP_NODELAY set on local socket
+2025.07.22 07:57:27 LOG5[3]: Service [binance-fix] accepted connection from 127.0.0.1:49912
+2025.07.22 07:57:27 LOG6[3]: s_connect: connecting 52.196.126.248:9000
+2025.07.22 07:57:27 LOG7[3]: s_connect: s_poll_wait 52.196.126.248:9000: waiting 10 seconds
+2025.07.22 07:57:27 LOG7[3]: FD=6 events=0x2001 revents=0x0
+2025.07.22 07:57:27 LOG7[3]: FD=10 events=0x2005 revents=0x0
+2025.07.22 07:57:28 LOG5[3]: s_connect: connected 52.196.126.248:9000
+2025.07.22 07:57:28 LOG5[3]: Service [binance-fix] connected remote server from 172.17.0.2:36024
+2025.07.22 07:57:28 LOG7[3]: Setting remote socket options (FD=10)
+2025.07.22 07:57:28 LOG7[3]: Option TCP_NODELAY set on remote socket
+2025.07.22 07:57:28 LOG7[3]: Remote descriptor (FD=10) initialized
+2025.07.22 07:57:28 LOG6[3]: SNI: sending servername: fix-oe.binance.com
+2025.07.22 07:57:28 LOG6[3]: Peer certificate not required
+2025.07.22 07:57:28 LOG7[3]: TLS state (connect): before SSL initialization
+2025.07.22 07:57:28 LOG7[3]: TLS state (connect): SSLv3/TLS write client hello
+2025.07.22 07:57:28 LOG7[3]: TLS state (connect): SSLv3/TLS write client hello
+2025.07.22 07:57:28 LOG7[3]: TLS state (connect): SSLv3/TLS read server hello
+2025.07.22 07:57:28 LOG7[3]: TLS state (connect): TLSv1.3 read encrypted extensions
+2025.07.22 07:57:28 LOG7[3]: TLS state (connect): SSLv3/TLS read finished
+2025.07.22 07:57:28 LOG7[3]: TLS state (connect): SSLv3/TLS write change cipher spec
+2025.07.22 07:57:28 LOG7[3]: TLS state (connect): SSLv3/TLS write finished
+2025.07.22 07:57:28 LOG7[3]: Remove session callback
+2025.07.22 07:57:28 LOG7[3]:      4 client connect(s) requested
+2025.07.22 07:57:28 LOG7[3]:      4 client connect(s) succeeded
+2025.07.22 07:57:28 LOG7[3]:      0 client renegotiation(s) requested
+2025.07.22 07:57:28 LOG7[3]:      3 session reuse(s)
+2025.07.22 07:57:28 LOG6[3]: TLS connected: previous session reused
+2025.07.22 07:57:28 LOG6[3]: TLSv1.3 ciphersuite: TLS_AES_128_GCM_SHA256 (128-bit encryption)
+2025.07.22 07:57:28 LOG7[3]: Compression: null, expansion: null
+2025.07.22 07:57:28 LOG6[3]: Session id: DC7B5784A98155A1DEA77FAC35DA693E8A8DE163AD2F10CF2E82104F4A517B5F
+2025.07.22 07:57:28 LOG7[3]: TLS state (connect): SSL negotiation finished successfully
+2025.07.22 07:57:28 LOG7[3]: TLS state (connect): SSL negotiation finished successfully
+2025.07.22 07:57:28 LOG7[3]: Initializing application specific data for session authenticated
+2025.07.22 07:57:28 LOG7[3]: New session callback
+2025.07.22 07:57:28 LOG7[3]: Deallocating application specific data for session connect address
+2025.07.22 07:57:28 LOG6[3]: Session id: 90795633B53A24BDFD173B1564BF46B556D5E576FC06D0BBF1D7208B9248BCBD
+2025.07.22 07:57:28 LOG7[3]: TLS state (connect): SSLv3/TLS read server session ticket
+2025.07.22 07:57:28 LOG7[3]: TLS alert (read): warning: close notify
+2025.07.22 07:57:28 LOG6[3]: TLS closed (SSL_read)
+2025.07.22 07:57:28 LOG7[3]: Sent socket write shutdown
+2025.07.22 07:57:28 LOG6[3]: Read socket closed (readsocket)
+2025.07.22 07:57:28 LOG7[3]: Sending close_notify alert
+2025.07.22 07:57:28 LOG7[3]: TLS alert (write): warning: close notify
+2025.07.22 07:57:28 LOG6[3]: SSL_shutdown successfully sent close_notify alert
+2025.07.22 07:57:28 LOG5[3]: Connection closed: 327 byte(s) sent to TLS, 0 byte(s) sent to socket
+2025.07.22 07:57:28 LOG7[3]: Remote descriptor (FD=10) closed
+2025.07.22 07:57:28 LOG7[3]: Local descriptor (FD=3) closed
+2025.07.22 07:57:28 LOG7[3]: Service [binance-fix] finished (0 left)
+2025.07.22 07:58:27 LOG7[ui]: Found 1 ready file descriptor(s)
+2025.07.22 07:58:27 LOG7[ui]: FD=4 events=0x2001 revents=0x0
+2025.07.22 07:58:27 LOG7[ui]: FD=8 events=0x2001 revents=0x1
+2025.07.22 07:58:27 LOG7[ui]: Service [binance-fix] accepted (FD=3) from 127.0.0.1:57174
+2025.07.22 07:58:27 LOG7[4]: Service [binance-fix] started
+2025.07.22 07:58:27 LOG7[4]: Setting local socket options (FD=3)
+2025.07.22 07:58:27 LOG7[4]: Option TCP_NODELAY set on local socket
+2025.07.22 07:58:27 LOG5[4]: Service [binance-fix] accepted connection from 127.0.0.1:57174
+2025.07.22 07:58:27 LOG6[4]: s_connect: connecting 52.196.126.248:9000
+2025.07.22 07:58:27 LOG7[4]: s_connect: s_poll_wait 52.196.126.248:9000: waiting 10 seconds
+2025.07.22 07:58:27 LOG7[4]: FD=6 events=0x2001 revents=0x0
+2025.07.22 07:58:27 LOG7[4]: FD=10 events=0x2005 revents=0x0
+2025.07.22 07:58:27 LOG5[4]: s_connect: connected 52.196.126.248:9000
+2025.07.22 07:58:27 LOG5[4]: Service [binance-fix] connected remote server from 172.17.0.2:47476
+2025.07.22 07:58:27 LOG7[4]: Setting remote socket options (FD=10)
+2025.07.22 07:58:27 LOG7[4]: Option TCP_NODELAY set on remote socket
+2025.07.22 07:58:27 LOG7[4]: Remote descriptor (FD=10) initialized
+2025.07.22 07:58:27 LOG6[4]: SNI: sending servername: fix-oe.binance.com
+2025.07.22 07:58:27 LOG6[4]: Peer certificate not required
+2025.07.22 07:58:27 LOG7[4]: TLS state (connect): before SSL initialization
+2025.07.22 07:58:27 LOG7[4]: TLS state (connect): SSLv3/TLS write client hello
+2025.07.22 07:58:27 LOG7[4]: TLS state (connect): SSLv3/TLS write client hello
+2025.07.22 07:58:28 LOG7[4]: TLS state (connect): SSLv3/TLS read server hello
+2025.07.22 07:58:28 LOG7[4]: TLS state (connect): TLSv1.3 read encrypted extensions
+2025.07.22 07:58:28 LOG7[4]: TLS state (connect): SSLv3/TLS read finished
+2025.07.22 07:58:28 LOG7[4]: TLS state (connect): SSLv3/TLS write change cipher spec
+2025.07.22 07:58:28 LOG7[4]: TLS state (connect): SSLv3/TLS write finished
+2025.07.22 07:58:28 LOG7[4]: Remove session callback
+2025.07.22 07:58:28 LOG7[4]:      5 client connect(s) requested
+2025.07.22 07:58:28 LOG7[4]:      5 client connect(s) succeeded
+2025.07.22 07:58:28 LOG7[4]:      0 client renegotiation(s) requested
+2025.07.22 07:58:28 LOG7[4]:      4 session reuse(s)
+2025.07.22 07:58:28 LOG6[4]: TLS connected: previous session reused
+2025.07.22 07:58:28 LOG6[4]: TLSv1.3 ciphersuite: TLS_AES_128_GCM_SHA256 (128-bit encryption)
+2025.07.22 07:58:28 LOG7[4]: Compression: null, expansion: null
+2025.07.22 07:58:28 LOG6[4]: Session id: 90795633B53A24BDFD173B1564BF46B556D5E576FC06D0BBF1D7208B9248BCBD
+2025.07.22 07:58:28 LOG7[4]: TLS state (connect): SSL negotiation finished successfully
+2025.07.22 07:58:28 LOG7[4]: TLS state (connect): SSL negotiation finished successfully
+2025.07.22 07:58:28 LOG7[4]: Initializing application specific data for session authenticated
+2025.07.22 07:58:28 LOG7[4]: New session callback
+2025.07.22 07:58:28 LOG7[4]: Deallocating application specific data for session connect address
+2025.07.22 07:58:28 LOG6[4]: Session id: 39CF40543F801595A1D2741B2FF696EB129E665A9006E483C4DB82B351545078
+2025.07.22 07:58:28 LOG7[4]: TLS state (connect): SSLv3/TLS read server session ticket
+2025.07.22 07:58:28 LOG7[4]: TLS alert (read): warning: close notify
+2025.07.22 07:58:28 LOG6[4]: TLS closed (SSL_read)
+2025.07.22 07:58:28 LOG7[4]: Sent socket write shutdown
+2025.07.22 07:58:28 LOG6[4]: Read socket closed (readsocket)
+2025.07.22 07:58:28 LOG7[4]: Sending close_notify alert
+2025.07.22 07:58:28 LOG7[4]: TLS alert (write): warning: close notify
+2025.07.22 07:58:28 LOG6[4]: SSL_shutdown successfully sent close_notify alert
+2025.07.22 07:58:28 LOG5[4]: Connection closed: 327 byte(s) sent to TLS, 0 byte(s) sent to socket
+2025.07.22 07:58:28 LOG7[4]: Remote descriptor (FD=10) closed
+2025.07.22 07:58:28 LOG7[4]: Local descriptor (FD=3) closed
+2025.07.22 07:58:28 LOG7[4]: Service [binance-fix] finished (0 left)
+2025.07.22 07:59:27 LOG7[ui]: Found 1 ready file descriptor(s)
+2025.07.22 07:59:27 LOG7[ui]: FD=4 events=0x2001 revents=0x0
+2025.07.22 07:59:27 LOG7[ui]: FD=8 events=0x2001 revents=0x1
+2025.07.22 07:59:27 LOG7[ui]: Service [binance-fix] accepted (FD=3) from 127.0.0.1:57796
+2025.07.22 07:59:27 LOG7[5]: Service [binance-fix] started
+2025.07.22 07:59:27 LOG7[5]: Setting local socket options (FD=3)
+2025.07.22 07:59:27 LOG7[5]: Option TCP_NODELAY set on local socket
+2025.07.22 07:59:27 LOG5[5]: Service [binance-fix] accepted connection from 127.0.0.1:57796
+2025.07.22 07:59:27 LOG6[5]: s_connect: connecting 52.196.126.248:9000
+2025.07.22 07:59:27 LOG7[5]: s_connect: s_poll_wait 52.196.126.248:9000: waiting 10 seconds
+2025.07.22 07:59:27 LOG7[5]: FD=6 events=0x2001 revents=0x0
+2025.07.22 07:59:27 LOG7[5]: FD=10 events=0x2005 revents=0x0
+2025.07.22 07:59:27 LOG5[5]: s_connect: connected 52.196.126.248:9000
+2025.07.22 07:59:27 LOG5[5]: Service [binance-fix] connected remote server from 172.17.0.2:55130
+2025.07.22 07:59:27 LOG7[5]: Setting remote socket options (FD=10)
+2025.07.22 07:59:27 LOG7[5]: Option TCP_NODELAY set on remote socket
+2025.07.22 07:59:27 LOG7[5]: Remote descriptor (FD=10) initialized
+2025.07.22 07:59:27 LOG6[5]: SNI: sending servername: fix-oe.binance.com
+2025.07.22 07:59:27 LOG6[5]: Peer certificate not required
+2025.07.22 07:59:27 LOG7[5]: TLS state (connect): before SSL initialization
+2025.07.22 07:59:27 LOG7[5]: TLS state (connect): SSLv3/TLS write client hello
+2025.07.22 07:59:28 LOG7[5]: TLS state (connect): SSLv3/TLS write client hello
+2025.07.22 07:59:28 LOG7[5]: TLS state (connect): SSLv3/TLS read server hello
+2025.07.22 07:59:28 LOG7[5]: TLS state (connect): TLSv1.3 read encrypted extensions
+2025.07.22 07:59:28 LOG7[5]: TLS state (connect): SSLv3/TLS read finished
+2025.07.22 07:59:28 LOG7[5]: TLS state (connect): SSLv3/TLS write change cipher spec
+2025.07.22 07:59:28 LOG7[5]: TLS state (connect): SSLv3/TLS write finished
+2025.07.22 07:59:28 LOG7[5]: Remove session callback
+2025.07.22 07:59:28 LOG7[5]:      6 client connect(s) requested
+2025.07.22 07:59:28 LOG7[5]:      6 client connect(s) succeeded
+2025.07.22 07:59:28 LOG7[5]:      0 client renegotiation(s) requested
+2025.07.22 07:59:28 LOG7[5]:      5 session reuse(s)
+2025.07.22 07:59:28 LOG6[5]: TLS connected: previous session reused
+2025.07.22 07:59:28 LOG6[5]: TLSv1.3 ciphersuite: TLS_AES_128_GCM_SHA256 (128-bit encryption)
+2025.07.22 07:59:28 LOG7[5]: Compression: null, expansion: null
+2025.07.22 07:59:28 LOG6[5]: Session id: 39CF40543F801595A1D2741B2FF696EB129E665A9006E483C4DB82B351545078
+2025.07.22 07:59:28 LOG7[5]: TLS state (connect): SSL negotiation finished successfully
+2025.07.22 07:59:28 LOG7[5]: TLS state (connect): SSL negotiation finished successfully
+2025.07.22 07:59:28 LOG7[5]: Initializing application specific data for session authenticated
+2025.07.22 07:59:28 LOG7[5]: New session callback
+2025.07.22 07:59:28 LOG7[5]: Deallocating application specific data for session connect address
+2025.07.22 07:59:28 LOG6[5]: Session id: E08311D8A2531884EADB377B8F4128D9250BBC42C8C4EF4D6D189C21090D37B6
+2025.07.22 07:59:28 LOG7[5]: TLS state (connect): SSLv3/TLS read server session ticket
+2025.07.22 07:59:28 LOG7[5]: TLS alert (read): warning: close notify
+2025.07.22 07:59:28 LOG6[5]: TLS closed (SSL_read)
+2025.07.22 07:59:28 LOG7[5]: Sent socket write shutdown
+2025.07.22 07:59:28 LOG6[5]: Read socket closed (readsocket)
+2025.07.22 07:59:28 LOG7[5]: Sending close_notify alert
+2025.07.22 07:59:28 LOG7[5]: TLS alert (write): warning: close notify
+2025.07.22 07:59:28 LOG6[5]: SSL_shutdown successfully sent close_notify alert
+2025.07.22 07:59:28 LOG5[5]: Connection closed: 327 byte(s) sent to TLS, 0 byte(s) sent to socket
+2025.07.22 07:59:28 LOG7[5]: Remote descriptor (FD=10) closed
+2025.07.22 07:59:28 LOG7[5]: Local descriptor (FD=3) closed
+2025.07.22 07:59:28 LOG7[5]: Service [binance-fix] finished (0 left)
+2025.07.22 08:02:02 LOG7[ui]: Found 1 ready file descriptor(s)
+2025.07.22 08:02:02 LOG7[ui]: FD=4 events=0x2001 revents=0x1
+2025.07.22 08:02:02 LOG7[ui]: FD=8 events=0x2001 revents=0x0
+2025.07.22 08:02:02 LOG7[ui]: Dispatching a signal from the signal pipe
+2025.07.22 08:02:02 LOG3[ui]: Received SIGINT; terminating
+2025.07.22 08:02:02 LOG7[ui]: Leak detection table utilization: 96/997, 9.63%
+2025.07.22 08:02:02 LOG7[ui]: Removed pid file /var/run/stunnel4.pid
+2025.07.22 08:02:02 LOG7[ui]: Terminating the cron thread
+2025.07.22 08:02:02 LOG5[ui]: Terminating 1 service thread(s)
+2025.07.22 08:02:02 LOG5[ui]: Service threads terminated
+2025.07.22 08:02:02 LOG7[ui]: Deallocating section defaults

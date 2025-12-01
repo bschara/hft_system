@@ -1,0 +1,3 @@
+add_library(MidPriceReversion mean_reversion/midprice_reversion.cpp)
+add_library(OrderBookImbalance mean_reversion/orderbook_imbalance.cpp)
+add_library(MicroMomentum trend_following/micro_momentum.cpp)
