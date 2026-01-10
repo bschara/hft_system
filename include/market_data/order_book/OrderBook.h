@@ -4,8 +4,8 @@
 #include <stdint.h>
 #include <cmath>
 #include <iomanip>
-#include "market_update.h"
 #include "utils/LFQueue.hpp"
+#include "types/market_update.h"
 
 constexpr int LOB_DEPTH = 256;
 constexpr double TICK_SIZE = 0.01;
@@ -15,14 +15,14 @@ constexpr int MAX_SHIFT_STEP = LOB_DEPTH / 4;
 
 struct alignas(32) PriceLevel
 {
-    double _price = 0;
-    double _totalQuantity = 0;
+    int64_t _price = 0;
+    int64_t _totalQuantity = 0;
     bool _isActive = false;
 
     PriceLevel() = default;
 
-    PriceLevel(double price, double quantity) : _price(price), _totalQuantity(quantity) {
-                                                };
+    PriceLevel(int64_t price, int64_t quantity) : _price(price), _totalQuantity(quantity) {
+                                                  };
 };
 
 class OrderBook
@@ -33,7 +33,7 @@ public:
 
     ~OrderBook();
 
-    int priceToIndex(double price, bool is_bid) const
+    int priceToIndex(int64_t price, bool is_bid) const
     {
         if (is_bid)
         {
@@ -106,10 +106,10 @@ public:
         }
     }
 
-    double getMidPrice() noexcept
+    int64_t getMidPrice() noexcept
     {
-        double bidsSum = 0.0, bidsVolume = 0.0;
-        double asksSum = 0.0, asksVolume = 0.0;
+        int64_t bidsSum = 0, bidsVolume = 0;
+        int64_t asksSum = 0, asksVolume = 0;
 
         int idx = bestBidIndex;
         int levels = 0;
@@ -137,7 +137,7 @@ public:
             idx = (idx + 1) % LOB_DEPTH;
         }
 
-        double totalVolume = bidsVolume + asksVolume;
+        int64_t totalVolume = bidsVolume + asksVolume;
         if (totalVolume == 0.0)
             return 0;
 
@@ -197,9 +197,9 @@ public:
                 }
                 else
                 {
-                    double ref_price = (update._price < asks[bestAskIndex]._price)
-                                           ? asks[bestAskIndex]._price
-                                           : asks[worstAskIndex]._price;
+                    int64_t ref_price = (update._price < asks[bestAskIndex]._price)
+                                            ? asks[bestAskIndex]._price
+                                            : asks[worstAskIndex]._price;
                     int step_size = abs(static_cast<int>(round((update._price - ref_price) / TICK_SIZE)));
 
                     if (step_size > MAX_SHIFT_STEP || (step_size > worstAskIndex || step_size > (LOB_DEPTH - bestAskIndex)))
@@ -268,9 +268,9 @@ public:
                 }
                 else
                 {
-                    double ref_price = (update._price > bids[bestBidIndex]._price)
-                                           ? bids[bestBidIndex]._price
-                                           : bids[worstBidIndex]._price;
+                    int64_t ref_price = (update._price > bids[bestBidIndex]._price)
+                                            ? bids[bestBidIndex]._price
+                                            : bids[worstBidIndex]._price;
                     int step_size = abs(static_cast<int>(round((update._price - ref_price) / TICK_SIZE)));
 
                     if (step_size > MAX_SHIFT_STEP || (step_size > bestBidIndex || step_size > (LOB_DEPTH - worstBidIndex)))
@@ -323,22 +323,22 @@ public:
         }
     }
 
-    double getBestAskPrice()
+    int64_t getBestAskPrice()
     {
         return asks[bestAskIndex]._price;
     }
 
-    double getBestAskQuantity()
+    int64_t getBestAskQuantity()
     {
         return asks[bestAskIndex]._totalQuantity;
     }
 
-    double getBestBidPrice()
+    int64_t getBestBidPrice()
     {
         return bids[bestBidIndex]._price;
     }
 
-    double getBestBidQuantity()
+    int64_t getBestBidQuantity()
     {
         return bids[bestBidIndex]._totalQuantity;
     }

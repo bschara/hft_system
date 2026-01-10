@@ -23,7 +23,6 @@ set(SUBMODULE_DIRS
     src/utils/BMWebSocket
     src/utils/TLSClient
     src/utils/HttpClient
-    src/utils/sbe_parser
     src/order_gateway
     src/strategies
     src/pcm_model
@@ -52,3 +51,8 @@ target_link_libraries(MainExec
         PostgreSQL::PostgreSQL
         OrderManagementSystem
 )
+
+option(BUILD_TESTING "Build unit tests" ON)
+if (BUILD_TESTING)
+    add_subdirectory(tests)
+endif()

@@ -1,6 +1,6 @@
 #include "market_data/data_ingester/MDataIngester.h"
 #include <thread>
-#include "utils/benchmark/benchmark_utility.hpp"
+#include "utils/parsing_functions.hpp"
 
 MDataIngester::MDataIngester(Common::LFQueue<MarketUpdate> *mDataQueue, std::string queryString, char *path, char *protocol, utility::TLSClient &tlsClient,
                              utility::BMWebSocket &socketClient) : queryString(queryString), path(path), protocol(protocol),
@@ -45,10 +45,7 @@ void MDataIngester::startReceiving()
 
     while (running)
     {
-        uint64_t start = rdtsc_start();
         auto frame = web_socket.read_frame();
-        uint64_t end = rdtsc_end();
-        std::cout << "CPU cycles: " << (end - start) << std::endl;
         if (!frame)
             continue;
 
@@ -61,72 +58,27 @@ void MDataIngester::startReceiving()
 
 void MDataIngester::parseAndEnqueueUpdates(std::span<const uint8_t> payload)
 {
-    auto read_int64_le = [&](size_t offset) -> int64_t
-    {
-        if (offset + sizeof(int64_t) > payload.size())
-            return 0;
-        int64_t value;
-        std::memcpy(&value, &payload[offset], sizeof(int64_t));
-        return value;
-    };
 
-    auto read_uint16_le = [&](size_t offset) -> uint16_t
-    {
-        if (offset + sizeof(uint16_t) > payload.size())
-            return 0;
-        uint16_t value;
-        std::memcpy(&value, &payload[offset], sizeof(uint16_t));
-        return value;
-    };
-
-    auto read_int8 = [&](size_t offset) -> int8_t
-    {
-        if (offset >= payload.size())
-            return 0;
-        int8_t value;
-        std::memcpy(&value, &payload[offset], sizeof(int8_t));
-        return value;
-    };
-
-    auto read_uint8 = [&](size_t offset) -> uint8_t
-    {
-        if (offset >= payload.size())
-            return 0;
-        uint8_t value;
-        std::memcpy(&value, &payload[offset], sizeof(uint8_t));
-        return value;
-    };
-    auto read_bool = [&](size_t offset) -> bool
-    {
-        if (offset >= payload.size())
-            return false;
-        return payload[offset] != 0;
-    };
-
-    uint16_t blockLength = read_uint16_le(0);
-    uint16_t templateId = read_uint16_le(2);
-    uint16_t schemaId = read_uint16_le(4);
-    uint16_t version = read_uint16_le(6);
-
+    // uint16_t blockLength = read_uint16_le(0);
+    // uint16_t templateId = read_uint16_le(2);
+    // uint16_t schemaId = read_uint16_le(4);
+    // uint16_t version = read_uint16_le(6);
     size_t offset = 8;
 
-    int64_t eventTime = read_int64_le(offset);
+    int64_t eventTime = read_int64_le(payload, offset);
 
-    int64_t firstBookUpdateID = read_int64_le(offset + 8);
+    int64_t firstBookUpdateID = read_int64_le(payload, offset + 8);
 
-    int64_t lastBookUpdateID = read_int64_le(offset + 16);
+    int64_t lastBookUpdateID = read_int64_le(payload, offset + 16);
 
-    int8_t priceExp = read_int8(offset + 24);
+    int8_t priceExp = read_int8(payload, offset + 24);
 
-    int8_t qtyExp = read_int8(offset + 25);
-
-    double priceScale = std::pow(10.0, priceExp);
-    double qtyScale = std::pow(10.0, qtyExp);
+    int8_t qtyExp = read_int8(payload, offset + 25);
 
     offset += 26;
 
-    uint16_t bidTradeBlockLength = read_uint16_le(offset);
-    uint16_t numBids = read_uint16_le(offset + 2);
+    uint16_t bidTradeBlockLength = read_uint16_le(payload, offset);
+    uint16_t numBids = read_uint16_le(payload, offset + 2);
     offset += 4;
 
     for (uint8_t t = 0; t < numBids; ++t)
@@ -134,13 +86,8 @@ void MDataIngester::parseAndEnqueueUpdates(std::span<const uint8_t> payload)
         if (offset + bidTradeBlockLength > payload.size())
             break;
 
-        int64_t priceRaw = read_int64_le(offset);
-        // std::cerr << "[BID] price " << priceRaw * priceScale << std::endl;
-        int64_t qtyRaw = read_int64_le(offset + 8);
-        // std::cerr << "[BID] quantity " << qtyRaw * qtyScale << std::endl;
-
-        double price = priceRaw * priceScale;
-        double qty = qtyRaw * qtyScale;
+        int64_t price = read_int64_le(payload, offset);
+        int64_t qty = read_int64_le(payload, offset + 8);
 
         *updatesQueue->getNextToWriteTo() = MarketUpdate(Side::BUY, price, qty, eventTime);
         updatesQueue->updateWriteIndex();
@@ -148,8 +95,8 @@ void MDataIngester::parseAndEnqueueUpdates(std::span<const uint8_t> payload)
         offset += bidTradeBlockLength;
     }
 
-    uint16_t askTradeBlockLength = read_uint16_le(offset);
-    uint16_t numAsks = read_uint16_le(offset + 2);
+    uint16_t askTradeBlockLength = read_uint16_le(payload, offset);
+    uint16_t numAsks = read_uint16_le(payload, offset + 2);
     offset += 4;
 
     for (uint8_t t = 0; t < numBids; ++t)
@@ -157,13 +104,8 @@ void MDataIngester::parseAndEnqueueUpdates(std::span<const uint8_t> payload)
         if (offset + askTradeBlockLength > payload.size())
             break;
 
-        int64_t priceRaw = read_int64_le(offset);
-        // std::cerr << "[ASK] price " << priceRaw * priceScale << std::endl;
-        int64_t qtyRaw = read_int64_le(offset + 8);
-        // std::cerr << "[ASK] quantity " << qtyRaw * qtyScale << std::endl;
-
-        int64_t price = priceRaw * priceScale;
-        int64_t qty = qtyRaw * qtyScale;
+        int64_t price = read_int64_le(payload, offset);
+        int64_t qty = read_int64_le(payload, offset + 8);
 
         *updatesQueue->getNextToWriteTo() = MarketUpdate(Side::SELL, price, qty, eventTime);
         updatesQueue->updateWriteIndex();

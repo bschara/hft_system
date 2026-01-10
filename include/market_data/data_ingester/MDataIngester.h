@@ -1,7 +1,7 @@
 #pragma once
 
 #include "utils/LFQueue.hpp"
-#include "market_data/order_book/market_update.h"
+#include "types/market_update.h"
 #include "utils/BMWebSocket/BMWebSocket.h"
 #include <cmath>
 

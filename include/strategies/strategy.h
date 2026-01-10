@@ -1,6 +1,6 @@
 #pragma once
 
-#include <market_data/order_book/market_update.h>
+#include "types/market_update.h"
 
 struct Signal
 {
