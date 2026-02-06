@@ -1,4 +1,4 @@
-add_library(MDataIngester MDataIngester.cpp)
-target_include_directories(MDataIngester PUBLIC ${PROJECT_SOURCE_DIR}/include)
-target_link_libraries(MDataIngester PUBLIC OrderBook)
-target_link_libraries(MDataIngester PUBLIC BMWebSocket)
+add_library(MarketDataIngester market_data_ingester.cpp)
+target_include_directories(MarketDataIngester PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(MarketDataIngester PUBLIC OrderBook)
+target_link_libraries(MarketDataIngester PUBLIC WebSocket)

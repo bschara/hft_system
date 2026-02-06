@@ -1,0 +1,4 @@
+exchange,symbol,stream
+BINANCE,BTCUSDT,btcusdt@depth
+BINANCE,ETHUSDT,ethusdt@depth
+BINANCE,BNBUSDT,bnbusdt@depth

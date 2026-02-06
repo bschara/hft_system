@@ -1,21 +1,20 @@
-#include "market_data/data_ingester/MDataIngester.h"
-#include <thread>
+#include "market_data/data_ingester/market_data_ingester.h"
 #include "utils/benchmark/benchmark_utility.hpp"
 
-MDataIngester::MDataIngester(Common::LFQueue<MarketUpdate> *mDataQueue, std::string queryString, char *path, char *protocol, utility::TLSClient &tlsClient,
-                             utility::BMWebSocket &socketClient) : queryString(queryString), path(path), protocol(protocol),
-                                                                   tls_client(tlsClient), web_socket(socketClient)
+MarketDataIngester::MarketDataIngester(Common::LFQueue<MarketUpdate> &mDataQueue, utility::TLSClient &tlsClient,
+                                       utility::WebSocket &socketClient) : updatesQueue(mDataQueue), tls_client(tlsClient), web_socket(socketClient)
 {
-    this->updatesQueue = mDataQueue;
 }
 
-MDataIngester::~MDataIngester()
+MarketDataIngester::~MarketDataIngester()
 {
     running = false;
 }
 
-void MDataIngester::startReceiving()
+void MarketDataIngester::startReceiving(std::string_view path, std::string_view protocol)
 {
+    std::string queryString = " ";
+
     if (!running)
     {
         running = true;
@@ -59,7 +58,7 @@ void MDataIngester::startReceiving()
     }
 }
 
-void MDataIngester::parseAndEnqueueUpdates(std::span<const uint8_t> payload)
+void MarketDataIngester::parseAndEnqueueUpdates(std::span<const uint8_t> payload)
 {
     auto read_int64_le = [&](size_t offset) -> int64_t
     {
@@ -142,8 +141,8 @@ void MDataIngester::parseAndEnqueueUpdates(std::span<const uint8_t> payload)
         double price = priceRaw * priceScale;
         double qty = qtyRaw * qtyScale;
 
-        *updatesQueue->getNextToWriteTo() = MarketUpdate(Side::BUY, price, qty, eventTime);
-        updatesQueue->updateWriteIndex();
+        *updatesQueue.getNextToWriteTo() = MarketUpdate(Side::BUY, price, qty, eventTime);
+        updatesQueue.updateWriteIndex();
 
         offset += bidTradeBlockLength;
     }
@@ -165,8 +164,8 @@ void MDataIngester::parseAndEnqueueUpdates(std::span<const uint8_t> payload)
         int64_t price = priceRaw * priceScale;
         int64_t qty = qtyRaw * qtyScale;
 
-        *updatesQueue->getNextToWriteTo() = MarketUpdate(Side::SELL, price, qty, eventTime);
-        updatesQueue->updateWriteIndex();
+        *updatesQueue.getNextToWriteTo() = MarketUpdate(Side::SELL, price, qty, eventTime);
+        updatesQueue.updateWriteIndex();
 
         offset += bidTradeBlockLength;
     }
@@ -186,7 +185,7 @@ void MDataIngester::parseAndEnqueueUpdates(std::span<const uint8_t> payload)
     }
 }
 
-void MDataIngester::stopReceiving()
+void MarketDataIngester::stopReceiving()
 {
     running = false;
 }

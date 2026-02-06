@@ -1,6 +1,6 @@
 #pragma once
 
-#include "market_data/order_book/OrderBook.h"
+#include "market_data/order_book/order_book.h"
 #include "strategies/strategy.h"
 
 class MidPriceReversion : public Strategy

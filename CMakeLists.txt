@@ -20,10 +20,10 @@ set(SUBMODULE_DIRS
     src/market_data/order_book
     src/market_data/data_ingester
     src/market_data/historical_data_aggregator
-    src/utils/BMWebSocket
-    src/utils/TLSClient
-    src/utils/HttpClient
-    src/utils/sbe_parser
+    src/utils/websocket
+    src/utils/tls_client
+    src/utils/http_client
+    src/utils/stream_config
     src/order_gateway
     src/strategies
     src/pcm_model
@@ -38,11 +38,12 @@ add_executable(MainExec src/main.cpp)
 
 target_link_libraries(MainExec
     PRIVATE
-        MDataIngester
-        BMWebSocket
+        MarketDataIngester
+        WebSocket
         OrderGateway
         TLSClient
         HttpClient
+        StreamConfig
         MidPriceReversion
         HistoricalDataAggergator
         PCModel

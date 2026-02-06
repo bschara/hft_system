@@ -5,7 +5,7 @@
 #include <cmath>
 #include <iomanip>
 #include "market_update.h"
-#include "utils/LFQueue.hpp"
+#include "utils/lock_free_queue.hpp"
 
 constexpr int LOB_DEPTH = 256;
 constexpr double TICK_SIZE = 0.01;
