@@ -8,25 +8,16 @@
 
 struct MarketUpdate
 {
-    // MarketUpdateType _type;
-    // long long _orderID;
+    int64_t _symbol;
     Side _side;
-    // double _price;
     int64_t _price;
-    // double _quantity;
     int64_t _quantity;
-    // uint32_t _tickerID;
-    // OrderType  _orderType;
     int64_t _timestamp;
 
     MarketUpdate() = default;
 
-    // MarketUpdate(MarketUpdateType _updateType, long long _orderID, Side _side,
-    //              float _price, double _quantity, uint64_t timestamp) : _type(_updateType),
-    //                                                                    _orderID(_orderID), _side(_side), _price(_price), _quantity(_quantity),
-    //                                                                    _timestamp(timestamp) {}
-    MarketUpdate(Side _side,
-                 int64_t _price, int64_t _quantity, int64_t timestamp) : _side(_side), _price(_price), _quantity(_quantity), _timestamp(timestamp)
+    MarketUpdate(int64_t symbol, Side side,
+                 int64_t price, int64_t quantity, int64_t timestamp) : _symbol(symbol), _side(side), _price(_price), _quantity(_quantity), _timestamp(timestamp)
     {
     }
 };

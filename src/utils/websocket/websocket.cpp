@@ -126,7 +126,6 @@ namespace utility
     {
         size_t offset = 0;
 
-        // --- Step 1: Read first 2 bytes (header) ---
         if (!recv_exact(recv_buf.data(), 2))
             return std::nullopt;
 
@@ -171,7 +170,6 @@ namespace utility
         if (payload_len > MAX_FRAME_SIZE)
             return std::nullopt;
 
-        // --- Step 3: Read masking key if present ---
         uint8_t mask[4] = {0};
         if (masked)
         {
@@ -179,7 +177,6 @@ namespace utility
                 return std::nullopt;
         }
 
-        // --- Step 4: Read payload ---
         if (payload_len > 0)
         {
             if (!recv_exact(recv_buf.data() + offset, payload_len))
@@ -188,18 +185,15 @@ namespace utility
 
         uint8_t *payload_ptr = recv_buf.data() + offset;
 
-        // --- Step 5: Unmask payload if needed ---
         if (masked && payload_len > 0)
             mask_payload(payload_ptr, payload_len, mask);
 
-        // --- Step 6: Handle ping control frame ---
         if (opcode == 0x9)
         {
             send_control_frame(0xA, std::span(payload_ptr, payload_len)); // pong
             return std::nullopt;
         }
 
-        // --- Step 7: Return parsed frame ---
         return WebSocketFrame{
             fin,
             opcode,

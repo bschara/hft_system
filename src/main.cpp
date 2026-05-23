@@ -6,7 +6,6 @@
 #include "utils/stream_config/stream_config.h"
 #include <iostream>
 
-
 int main()
 {
 
@@ -30,13 +29,15 @@ int main()
     // // std::string query = R"({"method":"SUBSCRIBE","params":["btcusdt@bestBidAsk"],"id":1})";
     // std::string query = R"({"method":"SUBSCRIBE","params":["btcusdt@depth"],"id":1})";
 
-      try {
+    try
+    {
         StreamConfig config("../exchanges_data.csv");
 
         std::string url = config.buildBinanceURL();
         std::cout << "Binance WS URL: " << url << std::endl;
-
-    } catch (const std::exception& ex) {
+    }
+    catch (const std::exception &ex)
+    {
         std::cerr << "Error: " << ex.what() << std::endl;
         return 1;
     }
