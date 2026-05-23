@@ -5,7 +5,7 @@
 #include <cmath>
 #include <iomanip>
 #include "market_update.h"
-#include "utils/LFQueue.hpp"
+#include "utils/lock_free_queue.hpp"
 
 constexpr int LOB_DEPTH = 256;
 constexpr double TICK_SIZE = 0.01;
@@ -29,7 +29,7 @@ class OrderBook
 {
 
 public:
-    OrderBook(Common::LFQueue<MarketUpdate> *marketDataQueue);
+    OrderBook();
 
     ~OrderBook();
 
@@ -343,33 +343,7 @@ public:
         return bids[bestBidIndex]._totalQuantity;
     }
 
-    void run()
-    {
-        if (!running)
-        {
-            running = true;
-        }
-
-        while (running)
-        {
-            std::cerr << "running " << std::endl;
-            auto *market_update = marketDataQueue->getNextToRead();
-            if (market_update)
-            {
-                std::cout << "price " << market_update->_price << " " << market_update->_side << std::endl;
-                addUpdate(*market_update);
-                marketDataQueue->updateReadIndex();
-            }
-        }
-    }
-
-    void stop()
-    {
-        running = false;
-    }
-
 private:
-    Common::LFQueue<MarketUpdate> *marketDataQueue;
     std::array<PriceLevel, LOB_DEPTH> bids;
     std::array<PriceLevel, LOB_DEPTH> asks;
     int bestBidIndex = 0;
@@ -378,5 +352,5 @@ private:
     int worstAskIndex = 0;
     int numOfBids = 0;
     int numOfAsks = 0;
-    bool running = false;
+    int last_update_id = 0;
 };

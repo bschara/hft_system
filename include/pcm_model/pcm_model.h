@@ -1,11 +1,11 @@
 #pragma once
 
-#include "utils/LFQueue.hpp"
+#include "utils/lock_free_queue.hpp"
 #include "strategies/strategy.h"
 #include "tcm_model/tcm.h"
 #include "risk_management/risk_model.h"
 #include <unordered_map>
-#include "market_data/order_book/OrderBook.h"
+#include "market_data/order_book/order_book.h"
 
 constexpr double capital_fraction = 0.02;
 

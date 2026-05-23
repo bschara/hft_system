@@ -1,9 +1,9 @@
-#include "utils/BMWebSocket/BMWebSocket.h"
+#include "utils/websocket/websocket.h"
 #include "helper.hpp"
 
 namespace utility
 {
-    BMWebSocket::BMWebSocket(TLSClient &client_ref, const std::string &_host, const std::string &api_key_)
+    WebSocket::WebSocket(TLSClient &client_ref, const std::string &_host, const std::string &api_key_)
         : tls(client_ref), host(_host), api_key(api_key_)
     {
         std::cout << "inside websocket construct" << std::endl;
@@ -12,9 +12,9 @@ namespace utility
         recv_buf.resize(MAX_FRAME_SIZE);
     }
 
-    BMWebSocket::~BMWebSocket() {}
+    WebSocket::~WebSocket() {}
 
-    bool BMWebSocket::perform_handshake(const std::string &path, const std::string &protocol)
+    bool WebSocket::perform_handshake(std::string_view path, std::string_view protocol)
     {
 
         std::ostringstream req;
@@ -47,7 +47,7 @@ namespace utility
                response.find("Upgrade: websocket") != std::string::npos;
     }
 
-    bool BMWebSocket::send_frame(std::span<const uint8_t> payload, uint8_t opcode)
+    bool WebSocket::send_frame(std::span<const uint8_t> payload, uint8_t opcode)
     {
         send_buf.clear();
 
@@ -84,7 +84,7 @@ namespace utility
         return sent == (int)send_buf.size();
     }
 
-    bool BMWebSocket::send_control_frame(uint8_t opcode, std::span<const uint8_t> payload)
+    bool WebSocket::send_control_frame(uint8_t opcode, std::span<const uint8_t> payload)
     {
         send_buf.clear();
 
@@ -109,7 +109,7 @@ namespace utility
         return sent == (int)send_buf.size();
     }
 
-    bool BMWebSocket::recv_exact(uint8_t *dst, size_t len)
+    bool WebSocket::recv_exact(uint8_t *dst, size_t len)
     {
         size_t total = 0;
         while (total < len)
@@ -122,11 +122,10 @@ namespace utility
         return true;
     }
 
-    std::optional<WSFrame> BMWebSocket::read_frame()
+    std::optional<WebSocketFrame> WebSocket::read_frame()
     {
         size_t offset = 0;
 
-        // --- Step 1: Read first 2 bytes (header) ---
         if (!recv_exact(recv_buf.data(), 2))
             return std::nullopt;
 
@@ -171,7 +170,6 @@ namespace utility
         if (payload_len > MAX_FRAME_SIZE)
             return std::nullopt;
 
-        // --- Step 3: Read masking key if present ---
         uint8_t mask[4] = {0};
         if (masked)
         {
@@ -179,7 +177,6 @@ namespace utility
                 return std::nullopt;
         }
 
-        // --- Step 4: Read payload ---
         if (payload_len > 0)
         {
             if (!recv_exact(recv_buf.data() + offset, payload_len))
@@ -188,25 +185,22 @@ namespace utility
 
         uint8_t *payload_ptr = recv_buf.data() + offset;
 
-        // --- Step 5: Unmask payload if needed ---
         if (masked && payload_len > 0)
             mask_payload(payload_ptr, payload_len, mask);
 
-        // --- Step 6: Handle ping control frame ---
         if (opcode == 0x9)
         {
             send_control_frame(0xA, std::span(payload_ptr, payload_len)); // pong
             return std::nullopt;
         }
 
-        // --- Step 7: Return parsed frame ---
-        return WSFrame{
+        return WebSocketFrame{
             fin,
             opcode,
             std::span<uint8_t>(payload_ptr, payload_len)};
     }
 
-    inline void BMWebSocket::mask_payload(uint8_t *data, size_t len, const uint8_t mask[4])
+    inline void WebSocket::mask_payload(uint8_t *data, size_t len, const uint8_t mask[4])
     {
         for (size_t i = 0; i < len; ++i)
             data[i] ^= mask[i % 4];
