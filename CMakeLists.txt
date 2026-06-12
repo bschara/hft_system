@@ -34,12 +34,19 @@ foreach(dir ${SUBMODULE_DIRS})
     add_subdirectory(${dir})
 endforeach()
 
+option(BUILD_TESTING "Build unit tests" ON)
+if(BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+
 add_executable(MainExec src/main.cpp)
 
 target_link_libraries(MainExec
     PRIVATE
         MarketDataIngester
         WebSocket
+        OrderBook
         OrderGateway
         TLSClient
         HttpClient

@@ -1,34 +1,53 @@
 #include "market_data/order_book/order_book_manager.h"
+#include "strategies/strategy_manager.hpp"
 
-OrderBookManager::OrderBookManager()
+OrderBookManager::OrderBookManager(Common::LFQueue<MarketUpdate> &queue, uint32_t num_instruments)
+    : updates_queue_(queue)
 {
+    order_books_.reserve(num_instruments);
 }
 
-void OrderBookManager::passUpdateToOrderbook(const MarketUpdate &_update)
+void OrderBookManager::register_instrument(uint32_t instrument_id)
 {
-    const int64_t orderbook_index = symbol_to_index.get(_update._symbol);
-    order_books[orderbook_index]->addUpdate(_update);
+    id_to_index_[instrument_id] = static_cast<uint16_t>(order_books_.size());
+    order_books_.emplace_back();
+}
+
+OrderBook &OrderBookManager::book_for(uint32_t instrument_id)
+{
+    return order_books_[id_to_index_.at(instrument_id)];
+}
+
+void OrderBookManager::set_strategy_manager(StrategyManager *sm)
+{
+    strategy_manager_ = sm;
+}
+
+void OrderBookManager::passUpdateToOrderbook(const MarketUpdate &update)
+{
+    auto it = id_to_index_.find(update._instrument_id);
+    if (__builtin_expect(it == id_to_index_.end(), 0))
+        return;
+    order_books_[it->second].addUpdate(update);
+    if (strategy_manager_)
+        strategy_manager_->onMarketData(&update);
 }
 
 void OrderBookManager::run()
 {
-    if (!running)
+    running_ = true;
+    while (running_)
     {
-        running = true;
-    }
-
-    while (running)
-    {
-        const MarketUpdate *update = updates_queue.getNextToRead();
+        const MarketUpdate *update = updates_queue_.getNextToRead();
         if (update)
         {
             passUpdateToOrderbook(*update);
-            updates_queue.updateReadIndex();
+            updates_queue_.updateReadIndex();
         }
     }
 }
 
 void OrderBookManager::stop()
 {
-    running = false;
+    running_ = false;
 }

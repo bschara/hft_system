@@ -1,8 +1,13 @@
 #include "market_data/data_ingester/market_data_ingester.h"
 #include "utils/benchmark/benchmark_utility.hpp"
 
-MarketDataIngester::MarketDataIngester(Common::LFQueue<MarketUpdate> &mDataQueue, utility::TLSClient &tlsClient,
-                                       utility::WebSocket &socketClient) : updatesQueue(mDataQueue), tls_client(tlsClient), web_socket(socketClient)
+MarketDataIngester::MarketDataIngester(Common::LFQueue<MarketUpdate> &mDataQueue,
+                                       utility::TLSClient &tlsClient,
+                                       utility::WebSocket &socketClient,
+                                       const VenueRegistry &registry,
+                                       std::string venue_name)
+    : updatesQueue(mDataQueue), tls_client(tlsClient), web_socket(socketClient),
+      registry_(registry), venue_name_(std::move(venue_name))
 {
 }
 
@@ -13,12 +18,8 @@ MarketDataIngester::~MarketDataIngester()
 
 void MarketDataIngester::startReceiving(std::string_view path, std::string_view protocol)
 {
-    std::string queryString = " ";
-
     if (!running)
-    {
         running = true;
-    }
 
     if (!tls_client.connect())
     {
@@ -32,29 +33,17 @@ void MarketDataIngester::startReceiving(std::string_view path, std::string_view 
         return;
     }
 
-    if (!web_socket.send_frame(std::span<const uint8_t>(
-            reinterpret_cast<const uint8_t *>(queryString.data()),
-            queryString.size())))
-    {
-        std::cerr << "Failed to send subscription\n";
-        return;
-    }
-
-    std::cout << "Subscribed to btcusdt@trade\n";
+    // Binance combined-stream URLs encode all subscriptions in the path;
+    // no subscription JSON frame is needed after the handshake.
 
     while (running)
     {
-        uint64_t start = rdtsc_start();
         auto frame = web_socket.read_frame();
-        uint64_t end = rdtsc_end();
-        std::cout << "CPU cycles: " << (end - start) << std::endl;
         if (!frame)
             continue;
 
         if (frame->opcode == 0x2) // binary data
-        {
             parseAndEnqueueUpdates(frame->payload);
-        }
     }
 }
 
@@ -87,101 +76,85 @@ void MarketDataIngester::parseAndEnqueueUpdates(std::span<const uint8_t> payload
         return value;
     };
 
-    auto read_uint8 = [&](size_t offset) -> uint8_t
-    {
-        if (offset >= payload.size())
-            return 0;
-        uint8_t value;
-        std::memcpy(&value, &payload[offset], sizeof(uint8_t));
-        return value;
-    };
-    auto read_bool = [&](size_t offset) -> bool
-    {
-        if (offset >= payload.size())
-            return false;
-        return payload[offset] != 0;
-    };
-
-    uint16_t blockLength = read_uint16_le(0);
-    uint16_t templateId = read_uint16_le(2);
-    uint16_t schemaId = read_uint16_le(4);
-    uint16_t version = read_uint16_le(6);
+    // --- SBE header (8 bytes) ---
+    // uint16_t blockLength = read_uint16_le(0);
+    // uint16_t templateId  = read_uint16_le(2);
+    // uint16_t schemaId    = read_uint16_le(4);
+    // uint16_t version     = read_uint16_le(6);
 
     size_t offset = 8;
 
-    int64_t eventTime = read_int64_le(offset);
-
-    int64_t firstBookUpdateID = read_int64_le(offset + 8);
-
-    int64_t lastBookUpdateID = read_int64_le(offset + 16);
+    int64_t eventTime = read_int64_le(offset);       // +0
+    // int64_t firstBookUpdateID = read_int64_le(offset + 8);
+    // int64_t lastBookUpdateID  = read_int64_le(offset + 16);
 
     int8_t priceExp = read_int8(offset + 24);
-
-    int8_t qtyExp = read_int8(offset + 25);
+    int8_t qtyExp   = read_int8(offset + 25);
 
     double priceScale = std::pow(10.0, priceExp);
-    double qtyScale = std::pow(10.0, qtyExp);
+    double qtyScale   = std::pow(10.0, qtyExp);
 
     offset += 26;
 
-    uint16_t bidTradeBlockLength = read_uint16_le(offset);
-    uint16_t numBids = read_uint16_le(offset + 2);
-    offset += 4;
+    // --- Pre-scan: compute where the symbol field lives before entering loops ---
+    uint16_t bidBlockLen = read_uint16_le(offset);
+    uint16_t numBids     = read_uint16_le(offset + 2);
+    size_t   bids_end    = offset + 4 + static_cast<size_t>(bidBlockLen) * numBids;
 
-    for (uint8_t t = 0; t < numBids; ++t)
+    uint16_t askBlockLen = read_uint16_le(bids_end);
+    uint16_t numAsks     = read_uint16_le(bids_end + 2);
+    size_t   asks_end    = bids_end + 4 + static_cast<size_t>(askBlockLen) * numAsks;
+
+    // --- Read symbol from the trailing field ---
+    uint32_t instrument_id = 0;
+    if (asks_end < payload.size())
     {
-        if (offset + bidTradeBlockLength > payload.size())
-            break;
-
-        int64_t priceRaw = read_int64_le(offset);
-        // std::cerr << "[BID] price " << priceRaw * priceScale << std::endl;
-        int64_t qtyRaw = read_int64_le(offset + 8);
-        // std::cerr << "[BID] quantity " << qtyRaw * qtyScale << std::endl;
-
-        double price = priceRaw * priceScale;
-        double qty = qtyRaw * qtyScale;
-
-        *updatesQueue.getNextToWriteTo() = MarketUpdate(Side::BUY, price, qty, eventTime);
-        updatesQueue.updateWriteIndex();
-
-        offset += bidTradeBlockLength;
-    }
-
-    uint16_t askTradeBlockLength = read_uint16_le(offset);
-    uint16_t numAsks = read_uint16_le(offset + 2);
-    offset += 4;
-
-    for (uint8_t t = 0; t < numBids; ++t)
-    {
-        if (offset + askTradeBlockLength > payload.size())
-            break;
-
-        int64_t priceRaw = read_int64_le(offset);
-        // std::cerr << "[ASK] price " << priceRaw * priceScale << std::endl;
-        int64_t qtyRaw = read_int64_le(offset + 8);
-        // std::cerr << "[ASK] quantity " << qtyRaw * qtyScale << std::endl;
-
-        int64_t price = priceRaw * priceScale;
-        int64_t qty = qtyRaw * qtyScale;
-
-        *updatesQueue.getNextToWriteTo() = MarketUpdate(Side::SELL, price, qty, eventTime);
-        updatesQueue.updateWriteIndex();
-
-        offset += bidTradeBlockLength;
-    }
-
-    size_t tradesGroupEnd = offset; // offset points right after last trade
-
-    if (tradesGroupEnd < payload.size())
-    {
-        uint8_t symbolLength = payload[tradesGroupEnd];
-        if (tradesGroupEnd + 1 + symbolLength <= payload.size())
+        uint8_t symLen = payload[asks_end];
+        if (asks_end + 1 + symLen <= payload.size())
         {
-            std::string_view symbol(
-                reinterpret_cast<const char *>(&payload[tradesGroupEnd + 1]),
-                symbolLength);
-            std::cerr << "[Symbol] " << symbol << "\n";
+            std::string_view symbol(reinterpret_cast<const char *>(&payload[asks_end + 1]), symLen);
+            try
+            {
+                instrument_id = registry_.lookup(venue_name_, std::string(symbol));
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "[Ingester] " << e.what() << "\n";
+                return;
+            }
         }
+    }
+
+    // --- Bid loop ---
+    offset += 4; // skip bidBlockLen + numBids header
+    for (uint16_t t = 0; t < numBids; ++t)
+    {
+        if (offset + bidBlockLen > payload.size())
+            break;
+
+        double price = read_int64_le(offset)     * priceScale;
+        double qty   = read_int64_le(offset + 8) * qtyScale;
+
+        *updatesQueue.getNextToWriteTo() = MarketUpdate(instrument_id, Side::BUY, price, qty, eventTime);
+        updatesQueue.updateWriteIndex();
+
+        offset += bidBlockLen;
+    }
+
+    // --- Ask loop ---
+    offset += 4; // skip askBlockLen + numAsks header
+    for (uint16_t t = 0; t < numAsks; ++t)
+    {
+        if (offset + askBlockLen > payload.size())
+            break;
+
+        double price = read_int64_le(offset)     * priceScale;
+        double qty   = read_int64_le(offset + 8) * qtyScale;
+
+        *updatesQueue.getNextToWriteTo() = MarketUpdate(instrument_id, Side::SELL, price, qty, eventTime);
+        updatesQueue.updateWriteIndex();
+
+        offset += askBlockLen;
     }
 }
 

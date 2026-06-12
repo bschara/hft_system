@@ -1,36 +1,50 @@
 #pragma once
 
+#include <unordered_map>
 #include <vector>
 #include <strategies/strategy.h>
-#include "utils/LFQueue.hpp"
-
-constexpr int MAX_STRATEGIES = 10;
+#include "utils/lock_free_queue.hpp"
 
 class StrategyManager
 {
 public:
-    StrategyManager(Common::LFQueue<double> *_signals)
-    {
-        strategies.reserve(MAX_STRATEGIES);
-        signals = _signals;
-    };
+    explicit StrategyManager(Common::LFQueue<double> *signals) : signals_(signals) {}
 
-    void register_strategy(Strategy *strat_ref)
+    // Register a strategy for a specific instrument (called at startup).
+    void register_strategy(uint32_t instrument_id, Strategy *strat)
     {
-        strategies.push_back(strat_ref);
-    };
+        per_instrument_[instrument_id].push_back(strat);
+    }
+
+    // Register a catch-all strategy that receives updates for every instrument.
+    void register_strategy(Strategy *strat)
+    {
+        global_strategies_.push_back(strat);
+    }
 
     void onMarketData(const MarketUpdate *marketUpdate)
     {
-        for (auto &strat : strategies)
+        auto it = per_instrument_.find(marketUpdate->_instrument_id);
+        if (it != per_instrument_.end())
+        {
+            for (auto *strat : it->second)
+            {
+                double signal = strat->onMarketData(marketUpdate);
+                *signals_->getNextToWriteTo() = signal;
+                signals_->updateWriteIndex();
+            }
+        }
+
+        for (auto *strat : global_strategies_)
         {
             double signal = strat->onMarketData(marketUpdate);
-            *signals->getNextToWriteTo() = signal;
-            signals->updateWriteIndex();
+            *signals_->getNextToWriteTo() = signal;
+            signals_->updateWriteIndex();
         }
     }
 
 private:
-    std::vector<Strategy *> strategies;
-    Common::LFQueue<double> *signals;
+    std::unordered_map<uint32_t, std::vector<Strategy *>> per_instrument_;
+    std::vector<Strategy *>                               global_strategies_;
+    Common::LFQueue<double>                              *signals_;
 };

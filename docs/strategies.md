@@ -19,22 +19,40 @@ Return value is a **signal** in `[-1.0, 1.0]`:
 - `-1.0` — maximum sell conviction
 - `0.0` — no edge / flat
 
+The `MarketUpdate` passed to `onMarketData` includes `_instrument_id`, so a strategy can inspect which instrument triggered the call.
+
 ---
 
 ## StrategyManager
 
-**Header:** `include/strategies/strategy_manager.hpp`
+**Header:** `include/strategies/strategy_manager.hpp` (header-only)
 
-Holds up to 10 strategy pointers. On each market update, calls `onMarketData()` on every registered strategy and writes the resulting signal to a `LFQueue<double>`.
+Dispatches market updates to strategies. Supports two registration modes:
 
 ```cpp
-StrategyManager mgr(signals_queue);
-mgr.register_strategy(&mid_reversion);
-mgr.register_strategy(&obi_strategy);
-mgr.onMarketData(&update);   // dispatches to all, enqueues signals
+// Per-symbol: strategy only receives updates for instrument_id
+strategy_manager.register_strategy(instrument_id, &my_strat);
+
+// Catch-all: receives updates for every instrument
+strategy_manager.register_strategy(&my_strat);
 ```
 
-Currently writes one signal per strategy per update. Aggregation (e.g., averaging signals) is left to `PCModel`.
+On each `onMarketData()` call, the manager:
+1. Looks up `marketUpdate->_instrument_id` in a `std::unordered_map`
+2. Calls every strategy registered for that instrument
+3. Calls every catch-all strategy
+4. Writes each returned signal to `LFQueue<double>`
+
+`StrategyManager::onMarketData()` is called by `OrderBookManager` on the OBM thread immediately after each book update. Strategies must be fast — no I/O, no heap allocation.
+
+Typical wiring in `main.cpp`:
+```cpp
+MidPriceReversion btc_strat(obm.book_for(btc_id));
+MidPriceReversion eth_strat(obm.book_for(eth_id));
+
+strategy_manager.register_strategy(btc_id, &btc_strat);
+strategy_manager.register_strategy(eth_id, &eth_strat);
+```
 
 ---
 
@@ -55,7 +73,10 @@ signal = (lastPrice - midPrice) / spread
 - Positive signal (lastPrice above mid) → sell pressure expected → negative trade signal
 - `spread = bestAsk - bestBid`
 
-**Interpretation:** When price is above mid, the strategy expects mean reversion downward and generates a sell signal (and vice versa).
+Constructor takes an `OrderBook&` bound to its symbol:
+```cpp
+MidPriceReversion strat(obm.book_for(btc_id));
+```
 
 ### OrderBookImbalance
 
@@ -89,12 +110,17 @@ Produces a signal in `[-1, 1]`. Positive momentum signals continued upward drift
 
 ## Adding a New Strategy
 
-1. Create a header in `include/strategies/<category>/my_strategy.h` inheriting from `Strategy`
+1. Create `include/strategies/<category>/my_strategy.h` inheriting from `Strategy`
 2. Implement `onMarketData()` returning a signal in `[-1, 1]`
 3. Create the corresponding `.cpp` in `src/strategies/<category>/`
-4. Add the source to the strategies `CMakeLists.txt`
-5. Instantiate and register in `main.cpp`:
+4. Add to `src/strategies/CMakeLists.txt`:
+   ```cmake
+   add_library(MyStrategy my_strategy.cpp)
+   target_include_directories(MyStrategy PUBLIC ${PROJECT_SOURCE_DIR}/include)
+   ```
+5. Link into `MainExec` in root `CMakeLists.txt`
+6. In `main.cpp`, construct with the correct `OrderBook&` and register per-symbol:
    ```cpp
-   MyStrategy my_strat(order_book);
-   strategy_manager.register_strategy(&my_strat);
+   MyStrategy strat(obm.book_for(instrument_id));
+   strategy_manager.register_strategy(instrument_id, &strat);
    ```

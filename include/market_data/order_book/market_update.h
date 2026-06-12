@@ -1,23 +1,23 @@
 #ifndef MARKET_UPDATE_H
 #define MARKET_UPDATE_H
 
-#include <iostream>
 #include "market_order.h"
-#include <vector>
-#include <cmath>
+#include <cstdint>
 
-struct MarketUpdate
+struct alignas(32) MarketUpdate
 {
-    int64_t _symbol;
-    Side _side;
-    int64_t _price;
-    int64_t _quantity;
-    int64_t _timestamp;
+    uint32_t _instrument_id; // packed: bits[31:16]=venue_idx, bits[15:0]=symbol_idx
+    Side     _side;
+    double   _price;
+    double   _quantity;
+    int64_t  _timestamp;
 
     MarketUpdate() = default;
 
-    MarketUpdate(int64_t symbol, Side side,
-                 int64_t price, int64_t quantity, int64_t timestamp) : _symbol(symbol), _side(side), _price(_price), _quantity(_quantity), _timestamp(timestamp)
+    MarketUpdate(uint32_t instrument_id, Side side,
+                 double price, double quantity, int64_t timestamp)
+        : _instrument_id(instrument_id), _side(side),
+          _price(price), _quantity(quantity), _timestamp(timestamp)
     {
     }
 };
