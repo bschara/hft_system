@@ -31,16 +31,20 @@ exchanges_data.csv
       ↓
 StreamConfig → VenueRegistry (instrument_id mapping)
       ↓
-MarketDataIngester  (one thread per venue, SBE WebSocket parser)
-      ↓  LFQueue<MarketUpdate>
+SchemaRegistry + SBEVenueParser  (schema-driven, stateless)
+      ↓
+MarketDataIngester  (one thread per venue — TLS recv → VenueParser::parse)
+      ↓  LFQueue<MarketUpdate>  (int64 raw prices, no float)
 OrderBookManager    (routes by instrument_id → OrderBook[])
       ↓
-OrderBook × N       (circular buffer LOB, 256 levels, O(1) updates)
+OrderBook × N       (circular buffer LOB, 256 levels, O(1) updates, int64 storage)
       ↓
 StrategyManager     (per-symbol dispatch)
-      ↓  LFQueue<double>  (signals in [-1, 1])
+      ↓  LFQueue<int32_t>  (signals in [-1000, 1000])
 PCModel → RiskModel → OrderGateway (FIX)
 ```
+
+**No floating-point on the hot path.** Prices and quantities flow as raw integers + exponents from ingester through order book through strategies. `PriceUtils::to_double()` is called only at PCModel and display boundaries.
 
 ## Threading Model
 
@@ -63,12 +67,13 @@ All inter-thread communication via `LFQueue<T>` (lock-free SPSC ring buffer). No
 | Directory | Library target | Purpose |
 |-----------|---------------|---------|
 | `include/market_data/` | — | Market data types and pipeline headers |
-| `include/strategies/` | — | Strategy interface and manager |
-| `include/utils/` | — | Lock-free queue, memory pool, TLS, WebSocket, StreamConfig, LatencyTracker |
-| `src/market_data/order_book/` | `OrderBook` | OrderBook + OrderBookManager |
-| `src/market_data/data_ingester/` | `MarketDataIngester` | WebSocket SBE parser |
-| `src/strategies/` | `MidPriceReversion`, `OrderBookImbalance`, `MicroMomentum` | Signal generators |
-| `src/pcm_model/` | `PCModel` | Signal → TradeIntent sizing |
+| `include/market_data/data_ingester/` | — | `MessageSchema`, `SchemaRegistry`, `VenueParser`, `SBEDecoder`, `SBEVenueParser` headers |
+| `include/strategies/` | — | Strategy interface (`int32_t` signals) and manager |
+| `include/utils/` | — | Lock-free queue, memory pool, TLS, WebSocket, StreamConfig, LatencyTracker, PriceUtils |
+| `src/market_data/order_book/` | `OrderBook` | OrderBook (int64 storage) + OrderBookManager |
+| `src/market_data/data_ingester/` | `MarketDataIngester` | WebSocket recv shell + `SBEDecoder` + `SBEVenueParser` |
+| `src/strategies/` | `MidPriceReversion`, `OrderBookImbalance`, `MicroMomentum` | Integer signal generators |
+| `src/pcm_model/` | `PCModel` | `int32_t` signal → TradeIntent sizing (single float conversion) |
 | `src/order_gateway/` | `OrderGateway` | FIX protocol (Ed25519, stunnel) |
 | `src/utils/` | `TLSClient`, `WebSocket`, `StreamConfig`, `HttpClient` | Infrastructure |
 

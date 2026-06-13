@@ -35,14 +35,14 @@ public:
     void stop();
 
 private:
-    std::vector<Common::LFQueue<MarketUpdate>*> update_queues_;  // one per venue
-    std::vector<OrderBook>                       order_books_;    // pre-reserved; never resized after init
-    std::unordered_map<uint32_t, uint16_t>       id_to_index_;
-    StrategyManager                             *strategy_manager_ = nullptr;
-    std::atomic<bool>                            running_{false};
+    std::vector<Common::LFQueue<MarketUpdate> *> update_queues_; // one per venue
+    std::vector<OrderBook> order_books_;                         // pre-reserved; never resized after init
+    std::unordered_map<uint32_t, uint16_t> id_to_index_;
+    StrategyManager *strategy_manager_ = nullptr;
+    std::atomic<bool> running_{false};
 
-    double                   ns_per_cycle_  = 1.0;
-    uint64_t                 update_count_  = 0;
+    double ns_per_cycle_ = 1.0;
+    uint64_t update_count_ = 0;
     Common::LatencyHistogram hist_queue_wait_{"queue_wait"};
     Common::LatencyHistogram hist_book_update_{"book_update"};
     Common::LatencyHistogram hist_strategy_{"strategy"};

@@ -6,12 +6,9 @@
 class OrderBookImbalance : public Strategy
 {
 public:
-    OrderBookImbalance(OrderBook &ob);
+    explicit OrderBookImbalance(OrderBook &ob);
 
-    // Micro-price vs volume-weighted mid; positive → sell, negative → buy
-    double generate_obi(double askPrice, double askQuantity, double bidPrice, double bidQuantity);
-
-    double onMarketData(const MarketUpdate *marketUpdate) override;
+    int32_t onMarketData(const MarketUpdate *marketUpdate) override;
 
 private:
     OrderBook &order_book;

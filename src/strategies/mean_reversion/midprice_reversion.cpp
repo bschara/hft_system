@@ -1,26 +1,18 @@
 #include "strategies/mean_reversion/midprice_reversion.h"
+#include <algorithm>
 
-MidPriceReversion::MidPriceReversion(OrderBook &ob) : order_book(ob) {};
+MidPriceReversion::MidPriceReversion(OrderBook &ob) : order_book(ob) {}
 
-// double MidPriceReversion::generate_reversion_signal(double last_trade_price)
-// {
-//     double midPrice = order_book.getMidPrice();
-//     return last_trade_price - midPrice;
-// }
-
-double MidPriceReversion::generate_reversion_signal(double last_trade_price)
+int32_t MidPriceReversion::onMarketData(const MarketUpdate *update)
 {
-    double midPrice = order_book.getMidPrice();
-    double spread = order_book.getBestAskPrice() - order_book.getBestBidPrice();
-    if (spread <= 0.0)
-        return 0.0;
+    int64_t midPrice = order_book.getMidRaw();
+    int64_t bestAsk  = order_book.getBestAskRaw();
+    int64_t bestBid  = order_book.getBestBidRaw();
+    int64_t spread   = bestAsk - bestBid;
+    if (spread <= 0) return 0;
 
-    double raw_signal = (last_trade_price - midPrice) / spread;
-    raw_signal = std::clamp(raw_signal, -3.0, 3.0);
-    return raw_signal / 3.0;
-}
-
-double MidPriceReversion::onMarketData(const MarketUpdate *marketUpdate)
-{
-    return generate_reversion_signal(marketUpdate->_price);
+    // Signal = (price - mid) * 1000 / (3 * spread), clamped to [-1000, 1000]
+    int64_t deviation = update->_price - midPrice;
+    return static_cast<int32_t>(std::clamp(deviation * 1000 / (3 * spread),
+                                           (int64_t)-1000, (int64_t)1000));
 }

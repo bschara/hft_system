@@ -29,45 +29,82 @@ Adding a new symbol: add a row to `exchanges_data.csv`. No code changes needed.
 
 ---
 
-## MarketDataIngester
+## MarketUpdate
 
-**Header:** `include/market_data/data_ingester/market_data_ingester.h`
-**Source:** `src/market_data/data_ingester/market_data_ingester.cpp`
+**Header:** `include/market_data/order_book/market_update.h`
 
-One instance per venue. Owns the full WebSocket lifecycle for that venue's combined stream:
-
-1. Calls `TLSClient::connect()` to open a TLS socket
-2. Calls `WebSocket::perform_handshake(path)` to upgrade; path encodes all subscriptions
-3. Enters a `read_frame()` loop; each binary frame is passed to `parseAndEnqueueUpdates()`
-
-Constructor:
 ```cpp
-MarketDataIngester ingester(update_queue, tls_client, web_socket, registry, "BINANCE");
-ingester.startReceiving("/stream?streams=btcusdt@depth/ethusdt@depth/bnbusdt@depth", "");
+struct alignas(64) MarketUpdate {
+    uint32_t _instrument_id;   // packed venue+symbol index
+    Side     _side;            // BUY or SELL
+    int64_t  _price;           // raw integer from exchange
+    int64_t  _quantity;        // raw integer (0 = remove level)
+    int8_t   _price_exp;       // actual price = _price × 10^_price_exp
+    int8_t   _qty_exp;         // actual qty   = _quantity × 10^_qty_exp
+    int64_t  _timestamp;       // exchange event time (microseconds)
+    uint64_t _recv_tsc;        // rdtsc at ingester enqueue; used for queue-wait latency
+};
 ```
 
-For Binance combined streams, no subscription JSON frame is sent after the handshake — subscriptions are encoded in the URL path.
+Prices and quantities are stored as **raw integers** — no float conversion happens on the hot path. To get a displayable double value use `PriceUtils::to_double(raw, exp)` (never on hot path). A zero quantity signals level removal.
 
-### SBE Parsing
+`_recv_tsc` is stamped once per SBE payload (before the bid/ask loops) and copied to every level in that payload. All levels parsed from the same WebSocket frame share the same ingestion timestamp.
 
-Binance depth streams use **Simple Binary Encoding (SBE)**. The parser in `parseAndEnqueueUpdates()` reads:
+---
+
+## Schema-Driven Ingestion Pipeline
+
+The ingestion layer is split into four components, from innermost to outermost:
+
+### MessageSchema (`data_ingester/message_schema.h`)
+
+A pure data struct describing the binary layout of one SBE templateId:
+
+```cpp
+struct MessageSchema {
+    uint16_t      template_id;
+    uint16_t      schema_id;
+    size_t        fixed_block_size;
+    size_t        event_time_offset;
+    TimestampUnit event_time_unit;     // MILLISECONDS → normalised to microseconds
+    size_t        price_exp_offset;    // within fixed block
+    size_t        qty_exp_offset;
+    ScaledField   price_field;         // { offset, encoding } within a level block
+    ScaledField   qty_field;
+    SideFieldDef  side_field;          // IMPLICIT_BY_GROUP or INLINE_FIELD
+};
+```
+
+The Binance depth schema is a `constexpr` defined in the header (`kBinanceDepthV1`). Adding a new schema means filling in a new `MessageSchema` struct — no parser code changes.
+
+### SchemaRegistry (`data_ingester/schema_registry.h`)
+
+Maps `templateId → MessageSchema`. Header-only, constructed at startup:
+```cpp
+SchemaRegistry binance_schemas;
+binance_schemas.registerSchema(kBinanceDepthV1);
+```
+
+### SBEDecoder (`data_ingester/sbe_decoder.h`)
+
+Stateless pure decoder. The Binance SBE wire format is:
 
 ```
 [SBE header: 8 bytes]
   uint16 blockLength, templateId, schemaId, version
 
 [Fixed block: 26 bytes]
-  int64  eventTime
+  int64  eventTime            ← normalised to microseconds
   int64  firstBookUpdateID
   int64  lastBookUpdateID
-  int8   priceExponent        ← scale: actual_price = raw × 10^exp
+  int8   priceExponent        ← shared across all levels in this message
   int8   qtyExponent
 
 [Bid group]
   uint16 bidBlockLength
   uint16 numBids
   for each bid:
-    int64 priceRaw
+    int64 priceRaw            ← stored as-is in MarketUpdate._price
     int64 qtyRaw
 
 [Ask group]
@@ -82,24 +119,53 @@ Binance depth streams use **Simple Binary Encoding (SBE)**. The parser in `parse
   char[] symbolName           ← e.g. "BTCUSDT"
 ```
 
-**Symbol extraction:** The parser pre-scans the payload to locate the trailing symbol field before entering the bid/ask loops. It calls `registry.lookup(venue_name, symbol)` once per payload to get `instrument_id`, then stamps every `MarketUpdate` in that payload with it.
+`SBEDecoder::decode()` pre-scans to the trailing symbol field, resolves `instrument_id` via `VenueRegistry`, then enqueues one `MarketUpdate` per level. Returns bytes consumed so the outer loop can advance the cursor. **No floating-point arithmetic.**
 
-Each price level becomes a `MarketUpdate` enqueued to the shared `LFQueue<MarketUpdate>`.
+### SBEVenueParser (`data_ingester/sbe_venue_parser.h`)
 
-### Key Types
+Outer dispatch loop over a WebSocket frame:
+1. Read `templateId` from SBE header at the current cursor
+2. Look up `MessageSchema` in `SchemaRegistry`
+3. Call `SBEDecoder::decode()` → advance cursor by bytes consumed
+4. Repeat until the frame is exhausted or an unknown templateId is encountered
 
+Implements `VenueParser` so `MarketDataIngester` is decoupled from any specific encoding.
+
+### VenueParser (`data_ingester/venue_parser.h`)
+
+Abstract interface:
 ```cpp
-struct alignas(64) MarketUpdate {
-    uint32_t _instrument_id;   // packed venue+symbol index
-    Side     _side;            // BUY or SELL
-    double   _price;           // actual_price = raw × 10^priceExp
-    double   _quantity;        // actual_qty  = raw × 10^qtyExp  (0 = level removed)
-    int64_t  _timestamp;       // exchange event time (microseconds)
-    uint64_t _recv_tsc;        // rdtsc at ingester enqueue; used by OBM for queue-wait latency
+class VenueParser {
+public:
+    virtual void parse(std::span<const uint8_t> payload,
+                       Common::LFQueue<MarketUpdate>& queue) = 0;
 };
 ```
 
-`_recv_tsc` is stamped once per SBE payload (before the bid/ask loops) and copied to every level in that payload. All levels parsed from the same WebSocket frame share the same ingestion timestamp.
+### MarketDataIngester (`data_ingester/market_data_ingester.h`)
+
+Thin shell — WebSocket receive loop only:
+
+```cpp
+MarketDataIngester ingester(binance_queue, tls_client, web_socket, binance_parser);
+ingester.startReceiving("/stream?streams=btcusdt@depth/ethusdt@depth", "");
+```
+
+On each binary frame, calls `parser_.parse(frame->payload, updatesQueue)`. No SBE awareness in the ingester itself.
+
+### Full Startup Wiring
+
+```cpp
+SchemaRegistry binance_schemas;
+binance_schemas.registerSchema(kBinanceDepthV1);
+
+SBEVenueParser binance_parser(std::move(binance_schemas), registry, "BINANCE");
+
+utility::TLSClient binance_tls("stream.binance.com", 9443);
+utility::WebSocket binance_ws(binance_tls, "stream.binance.com", "");
+
+MarketDataIngester binance_ingester(binance_queue, binance_tls, binance_ws, binance_parser);
+```
 
 ---
 
@@ -108,50 +174,56 @@ struct alignas(64) MarketUpdate {
 **Header:** `include/market_data/order_book/order_book.h`
 **Source:** `src/market_data/order_book/order_book.cpp`
 
-Maintains a live Limit Order Book for a single symbol using a **circular buffer** of 256 price levels per side. The `OrderBook` does not know its own symbol — identity is managed by `OrderBookManager`.
+Maintains a live Limit Order Book for a single symbol using a **circular buffer** of 256 price levels per side. Prices and quantities are stored as raw integers matching the `MarketUpdate` fields. The `OrderBook` does not know its own symbol — identity is managed by `OrderBookManager`.
 
 ### Constants
 
 | Constant | Value | Meaning |
 |----------|-------|---------|
 | `LOB_DEPTH` | 256 | Price levels stored per side |
-| `TICK_SIZE` | 0.01 | Minimum price increment |
-| `QUANTITY_STEP_SIZE` | 0.0001 | Minimum quantity increment |
+| `TICK_UNITS` | 1 | Minimum raw integer tick (one unit = one price step) |
 | `MID_PRICE_N` | 5 | Levels used for volume-weighted mid-price |
+| `MAX_SHIFT_STEP` | 64 | Max raw ticks outside window before update is dropped |
+
+### PriceLevel Layout
+
+```cpp
+struct alignas(32) PriceLevel {
+    int64_t _price    = 0;
+    int64_t _quantity = 0;
+    bool    _isActive = false;
+};
+```
 
 ### Indexing
 
 Price → buffer slot relative to the current best price:
 
 ```
-index = (bestIndex + round((price - bestPrice) / TICK_SIZE) + LOB_DEPTH) % LOB_DEPTH
+index = (bestIndex + (price - bestPrice) / TICK_UNITS + LOB_DEPTH) % LOB_DEPTH
 ```
 
-This convention is the same for both sides — a price one tick *above* best maps to `bestIndex + 1`. For bids, `bestBidIndex` holds the highest price and `getMidPrice` walks in the `-1` direction toward lower (worse) prices. For asks, `bestAskIndex` holds the lowest price and `getMidPrice` walks in the `+1` direction toward higher (worse) prices. Updates beyond `MAX_SHIFT_STEP = 64` ticks from the current window are silently dropped to prevent index overflow.
+This convention is the same for both sides — a price one tick above best maps to `bestIndex + 1`. For bids, `bestBidIndex` holds the highest price and `getMidRaw` walks in the `-1` direction toward lower (worse) prices. For asks, `bestAskIndex` holds the lowest price and `getMidRaw` walks in the `+1` direction toward higher (worse) prices. Updates beyond `MAX_SHIFT_STEP = 64` ticks from the current window are silently dropped.
+
+### Key Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `addUpdate(const MarketUpdate&)` | void | Apply a depth update; qty=0 removes the level |
+| `getMidRaw()` | `int64_t` | Volume-weighted mid price (raw units); uses `__int128` sums |
+| `getMidPrice()` | `double` | `PriceUtils::to_double(getMidRaw(), price_exp_)` — for PCModel/display only |
+| `getBestBidRaw()` | `int64_t` | Best bid price (raw integer) |
+| `getBestAskRaw()` | `int64_t` | Best ask price (raw integer) |
+| `getBestBidQtyRaw()` | `int64_t` | Best bid quantity (raw integer) |
+| `getBestAskQtyRaw()` | `int64_t` | Best ask quantity (raw integer) |
+| `getNumOfBids()` / `getNumOfAsks()` | `int` | Active level counts |
+| `price_exp()` / `qty_exp()` | `int8_t` | Exponents latched from first update |
+
+`getMidRaw()` uses `__int128` for the `price × quantity` accumulator sums to prevent overflow on large raw integers.
 
 ### Zero-Quantity Removal
 
 A `MarketUpdate` with `_quantity == 0` removes the level at that price. `addUpdate()` clears `_isActive`, decrements the count, and if the removed level was the best or worst, scans for the next active level to update the endpoint index.
-
-### Key Methods
-
-| Method | Description |
-|--------|-------------|
-| `addUpdate(const MarketUpdate&)` | Apply a depth update; qty=0 removes the level |
-| `getMidPrice()` | Volume-weighted average of up to `MID_PRICE_N` bid and ask levels |
-| `getBestBidPrice()` / `getBestAskPrice()` | Best quoted prices |
-| `getBestBidQuantity()` / `getBestAskQuantity()` | Quantities at best prices |
-| `getNumOfBids()` / `getNumOfAsks()` | Active level counts |
-
-### PriceLevel Layout
-
-```cpp
-struct alignas(32) PriceLevel {
-    double _price        = 0;
-    double _totalQuantity = 0;
-    bool   _isActive     = false;
-};
-```
 
 ---
 
@@ -160,7 +232,7 @@ struct alignas(32) PriceLevel {
 **Header:** `include/market_data/order_book/order_book_manager.h`
 **Source:** `src/market_data/order_book/order_book_manager.cpp`
 
-Routes `MarketUpdate` objects from the shared queue to the correct `OrderBook` instance. Stores `OrderBook` objects in a flat `std::vector` pre-reserved at construction — no heap allocation after startup, and references are stable.
+Routes `MarketUpdate` objects from per-venue queues to the correct `OrderBook` instance. Stores `OrderBook` objects in a flat `std::vector` pre-reserved at construction — no heap allocation after startup, and references are stable.
 
 ### Startup Sequence (must complete before any threads launch)
 
@@ -182,11 +254,9 @@ OrderBook& btc_book = obm.book_for(btc_id);
 obm.set_strategy_manager(&strategy_manager);
 ```
 
-The OBM `run()` loop round-robins over all registered queues, so each venue queue is polled every iteration. Each ingester thread writes exclusively to its own queue — the SPSC guarantee is preserved even with multiple venues.
-
 ### Hot Path
 
-`run()` dequeues one `MarketUpdate` at a time, looks up the `instrument_id` in an `unordered_map<uint32_t, uint16_t>` to get an array index, calls `OrderBook::addUpdate()`, then calls `StrategyManager::onMarketData()`.
+`run()` round-robins over all registered queues, stamps `dequeue_tsc = rdtsc_start()`, dequeues one `MarketUpdate`, looks up the `instrument_id` in an `unordered_map<uint32_t, uint16_t>` to get an array index, calls `OrderBook::addUpdate()`, then calls `StrategyManager::onMarketData()`.
 
 ### API
 
@@ -194,12 +264,30 @@ The OBM `run()` loop round-robins over all registered queues, so each venue queu
 |--------|--------|-------------|
 | `register_instrument(uint32_t id)` | startup only | Allocates one OrderBook slot |
 | `book_for(uint32_t id)` | startup only | Returns stable `OrderBook&` |
-| `add_queue(LFQueue<MarketUpdate>&)` | startup only | Registers a per-venue queue; call once per ingester thread |
+| `add_queue(LFQueue<MarketUpdate>&)` | startup only | Registers a per-venue queue; one per ingester thread |
 | `set_strategy_manager(StrategyManager*)` | startup only | Wires signal dispatch |
-| `set_ns_per_cycle(double)` | startup only | Sets TSC→ns conversion factor for latency reports |
+| `set_ns_per_cycle(double)` | startup only | Sets TSC→ns factor for latency reports |
 | `run()` | OBM thread | Round-robins over all queues; records latency histograms |
 | `report_latencies()` | OBM thread | Prints p50/p99/p999 for all stages; called every 1M updates |
-| `stop()` | any | Sets flag to exit `run()` |
+| `stop()` | any | Sets atomic flag to exit `run()` |
+
+---
+
+## Price Utilities
+
+**Header:** `include/utils/price_utils.hpp` (header-only)
+
+For display, logging, and PCModel output only — **never called on the hot path**:
+
+```cpp
+// Convert raw integer + exponent to double
+double PriceUtils::to_double(int64_t raw, int8_t exp);   // raw × 10^exp
+
+// Format as a string (for logging)
+std::string PriceUtils::to_string(int64_t raw, int8_t exp);
+```
+
+Example: `PriceUtils::to_double(4500000, -2)` → `45000.00` (BTCUSDT at $45,000).
 
 ---
 
@@ -211,27 +299,17 @@ The OBM `run()` loop round-robins over all registered queues, so each venue queu
 Fetches and stores historical tick data from the Binance REST API.
 
 - Connects to PostgreSQL via `PQconnectdb()` on construction
-- Creates `tick_data` table if it does not exist:
-  ```sql
-  CREATE TABLE tick_data (
-      time        TIMESTAMPTZ,
-      side        TEXT,
-      price       DOUBLE PRECISION,
-      quantity    DOUBLE PRECISION
-  );
-  ```
+- Creates `tick_data` table if it does not exist
 - `fetchHistoricalData()` — HTTP GET to Binance klines endpoint, parses JSON with simdjson
 - `ComputeVolatility()` — Returns annualized volatility from stored returns
-- `insert_tick_data()` / `writeToDB()` — Batch inserts to PostgreSQL
 
-Status: partially implemented. PostgreSQL connection and schema creation work; data fetch and compute methods are in progress.
+Status: partially implemented.
 
 ---
 
 ## Stream Configuration
 
 **Header:** `include/utils/stream_config/stream_config.h`
-**Source:** `src/utils/stream_config/stream_config.cpp`
 
 Loads `exchanges_data.csv` and builds the Binance combined stream WebSocket URL.
 
@@ -241,5 +319,3 @@ const auto& rows = config.getRows();   // all StreamRow structs
 std::string url  = config.buildBinanceURL();
 // → "wss://stream.binance.com:9443/stream?streams=btcusdt@depth/ethusdt@depth/bnbusdt@depth"
 ```
-
-`StreamRow` fields: `exchange`, `symbol`, `stream`. The `stream` column value maps directly to the Binance stream name token.

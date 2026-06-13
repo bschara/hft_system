@@ -15,14 +15,14 @@ exchanges_data.csv  ──→  StreamConfig  ──→  VenueRegistry
              │  MarketDataIngester × N venues        │
              │  (one thread per venue, SBE parser)   │
              └────────────────┬─────────────────────┘
-                              │ LFQueue<MarketUpdate>
+                              │ LFQueue<MarketUpdate>  (int64 raw prices + exponent, no float)
              ┌────────────────▼─────────────────────┐
              │         OrderBookManager              │
              │  routes by instrument_id              │
              │  ┌───────────────────────────────┐   │
              │  │ OrderBook[BTC]                │   │
              │  │ OrderBook[ETH]  × N symbols   │   │
-             │  │ OrderBook[BNB]                │   │
+             │  │ OrderBook[BNB]  (int64 LOB)   │   │
              │  └───────────────────────────────┘   │
              └────────────────┬─────────────────────┘
                               │
@@ -32,10 +32,10 @@ exchanges_data.csv  ──→  StreamConfig  ──→  VenueRegistry
              │  ┌───────────────────────────────┐   │
              │  │ MidPriceReversion             │   │
              │  │ OrderBookImbalance  per symbol │   │
-             │  │ MicroMomentum                 │   │
+             │  │ MicroMomentum  (int arithmetic)│   │
              │  └───────────────────────────────┘   │
              └────────────────┬─────────────────────┘
-                              │ LFQueue<double>  signals ∈ [-1, 1]
+                              │ LFQueue<int32_t>  signals ∈ [-1000, 1000]
              ┌────────────────▼─────────────────────┐
              │  PCModel  ←──  RiskModel, TCModel     │
              └────────────────┬─────────────────────┘
@@ -48,11 +48,13 @@ exchanges_data.csv  ──→  StreamConfig  ──→  VenueRegistry
 ## Features
 
 - **Multi-venue, multi-symbol** — `VenueRegistry` maps `(exchange, symbol)` to a packed `uint32_t instrument_id`; adding a symbol requires only a new CSV row
-- **Lock-free data pipeline** — `LFQueue<T>` SPSC ring buffers for zero-mutex cross-thread communication
-- **Circular buffer order book** — 256-level LOB with O(1) update, modular-arithmetic indexing; zero-quantity removal and sparse-book protection built in
+- **Lock-free data pipeline** — `LFQueue<T>` SPSC ring buffers for zero-mutex cross-thread communication; one queue per venue (SPSC guarantee preserved)
+- **Integer prices throughout** — `MarketUpdate` carries raw `int64_t` price/quantity + `int8_t` exponent; no float conversion until PCModel boundary; `PriceUtils::to_double()` for display only
+- **Integer signals** — Strategies produce `int32_t` signals in `[-1000, 1000]`; pure integer arithmetic throughout (including `__int128` for price×qty products in OBI); PCModel is the single float boundary
+- **Circular buffer order book** — 256-level LOB with O(1) update, integer tick-arithmetic indexing; zero-quantity removal and sparse-book protection built in
+- **Schema-driven SBE decoder** — `MessageSchema` (pure byte-offset map) + `SchemaRegistry` (templateId → schema) + stateless `SBEDecoder`; `SBEVenueParser` outer loop handles multi-message frames; `VenueParser` interface makes adding new venues trivial
 - **Per-symbol strategy dispatch** — `StrategyManager` routes each market update only to strategies registered for that instrument; three strategies active per symbol (MidPriceReversion, OrderBookImbalance, MicroMomentum), producing three signals per update
-- **SBE binary parser** — Decodes Binance WebSocket SBE (Simple Binary Encoding) depth streams; symbol extracted per-payload and stamped on every `MarketUpdate`
-- **Pipeline latency measurement** — Per-stage nanosecond histograms (queue wait, book update, strategy dispatch) using rdtsc; TSC calibrated to wall-clock at startup; p50/p99/p999 reported every 1M updates
+- **Pipeline latency measurement** — Per-stage nanosecond histograms (queue wait, book update, strategy dispatch, OBM total) using rdtsc; TSC calibrated to wall-clock at startup; p50/p99/p999 reported every 1M updates
 - **Transaction cost model** — Spread, slippage, and market impact estimation before order submission
 - **Pre-trade risk checks** — Position limits, notional exposure, leverage, and trade size guards
 - **Memory pool** — Pre-allocated object pool to avoid heap allocation on the hot path
@@ -70,13 +72,22 @@ hft_system/
 │   ├── market_data/
 │   │   ├── CLAUDE.md                   # Market data module context
 │   │   ├── venue_registry.hpp          # (exchange, symbol) → instrument_id mapping
-│   │   ├── data_ingester/              # WebSocket SBE consumer (one per venue)
+│   │   ├── data_ingester/
+│   │   │   ├── message_schema.h        # MessageSchema (byte-offset map) + kBinanceDepthV1
+│   │   │   ├── schema_registry.h       # templateId → MessageSchema map
+│   │   │   ├── venue_parser.h          # Abstract VenueParser interface
+│   │   │   ├── sbe_decoder.h           # Stateless SBEDecoder (pure function, no float)
+│   │   │   ├── sbe_venue_parser.h      # SBE dispatch shell (templateId → decode)
+│   │   │   └── market_data_ingester.h  # TLS/WS recv loop — delegates to VenueParser
 │   │   ├── historical_data_aggregator/
-│   │   └── order_book/                 # LOB engine, MarketUpdate, OrderBookManager
+│   │   └── order_book/
+│   │       ├── market_update.h         # int64 price/qty + int8 exponents
+│   │       ├── order_book.h            # Circular LOB, int64 PriceLevel, getMidRaw()
+│   │       └── order_book_manager.h    # Multi-venue routing + latency histograms
 │   ├── strategies/
 │   │   ├── CLAUDE.md                   # Strategy module context
-│   │   ├── strategy.h                  # Base interface
-│   │   ├── strategy_manager.hpp        # Per-symbol dispatch
+│   │   ├── strategy.h                  # Base interface (returns int32_t [-1000,1000])
+│   │   ├── strategy_manager.hpp        # Per-symbol dispatch, LFQueue<int32_t>
 │   │   ├── mean_reversion/
 │   │   └── trend_following/
 │   └── utils/
@@ -85,6 +96,7 @@ hft_system/
 │       ├── memory_pool.hpp             # Pre-allocated pool (header-only)
 │       ├── env_loader.hpp              # .env file loader (header-only)
 │       ├── latency_tracker.hpp         # Log2 histogram + TSC calibration (header-only)
+│       ├── price_utils.hpp             # PriceUtils::to_double() / to_string() — display only
 │       ├── stream_config/              # CSV parser + URL builder
 │       ├── websocket/
 │       ├── tls_client/
@@ -222,13 +234,13 @@ Tests live under `tests/`. Current coverage:
 | -------------------------------- | --------------------------------------------------------- |
 | TLS / WebSocket client           | Complete                                                  |
 | VenueRegistry (multi-instrument) | Complete                                                  |
-| Market data ingestion (SBE)      | Complete — symbol extracted per-payload, bugs fixed       |
-| Circular buffer order book       | Complete — bugs fixed, 27 unit tests passing              |
-| OrderBookManager (multi-symbol)  | Complete — dynamic routing by instrument_id               |
-| Strategy framework + signals     | Complete — per-symbol dispatch                            |
-| Mean reversion strategy          | Complete — wired, one instance per symbol                 |
-| Order book imbalance             | Complete — wired, inherits Strategy, micro-price signal   |
-| Micro-momentum                   | Complete — wired, 20-tick window, normalized to [-1, 1]   |
+| Market data ingestion (SBE)      | Complete — schema-driven stateless decoder, multi-symbol frames, no float |
+| Circular buffer order book       | Complete — int64 storage, integer tick math, 27 unit tests passing |
+| OrderBookManager (multi-symbol)  | Complete — dynamic routing, per-stage rdtsc histograms    |
+| Strategy framework + signals     | Complete — int32_t [-1000,1000] signals, LFQueue<int32_t> |
+| Mean reversion strategy          | Complete — pure int64 arithmetic                          |
+| Order book imbalance             | Complete — __int128 for price×qty products                |
+| Micro-momentum                   | Complete — 20-tick window, int64 arithmetic                |
 | Transaction cost model           | Complete                                                  |
 | Position/capital model           | Functional (simplified)                                   |
 | Risk model                       | Interface defined, checks implemented                     |

@@ -7,7 +7,7 @@ Each subdirectory under `src/` is a separately-compiled static library with its 
 | Target | Sources | Notes |
 |--------|---------|-------|
 | `OrderBook` | `order_book.cpp`, `order_book_manager.cpp` | Both in same library; OBM uses OrderBook types directly |
-| `MarketDataIngester` | `market_data_ingester.cpp` | Links against `OrderBook`, `WebSocket`, `StreamConfig` transitively |
+| `MarketDataIngester` | `market_data_ingester.cpp`, `sbe_decoder.cpp`, `sbe_venue_parser.cpp` | Links against `OrderBook`, `WebSocket`; `SBEDecoder` + `SBEVenueParser` compiled in |
 | `MidPriceReversion` | `mean_reversion/midprice_reversion.cpp` | |
 | `OrderBookImbalance` | `mean_reversion/orderbook_imbalance.cpp` | |
 | `MicroMomentum` | `trend_following/micro_momentum.cpp` | |
@@ -38,6 +38,7 @@ Files in `include/utils/` that are header-only (no `.cpp`):
 - `lock_free_queue.hpp`
 - `memory_pool.hpp`
 - `env_loader.hpp`
+- `price_utils.hpp`
 - `benchmark/benchmark_utility.hpp`
 - `csv.h`
 - `macros.h`
@@ -45,6 +46,11 @@ Files in `include/utils/` that are header-only (no `.cpp`):
 
 And in `include/market_data/`:
 - `venue_registry.hpp`
+- `data_ingester/message_schema.h`
+- `data_ingester/schema_registry.h`
+- `data_ingester/venue_parser.h`
+- `data_ingester/sbe_decoder.h`    (implementation in `sbe_decoder.cpp`)
+- `data_ingester/sbe_venue_parser.h` (implementation in `sbe_venue_parser.cpp`)
 - `strategies/strategy_manager.hpp`
 
 These need no CMake library target and are included directly.
@@ -53,8 +59,8 @@ These need no CMake library target and are included directly.
 
 `src/main.cpp` wires all components together:
 1. Load env, parse CSV, build `VenueRegistry`; calibrate TSC (`calibrate_tsc_ns()`)
-2. Construct one `LFQueue<MarketUpdate>` per venue; construct `LFQueue<double>` for signals (capacity 8192)
+2. Construct one `LFQueue<MarketUpdate>` per venue; construct `LFQueue<int32_t>` for signals (capacity 8192)
 3. Construct `OrderBookManager`, register instruments, call `add_queue()` for each venue queue
 4. Construct `StrategyManager`; register all three strategy types (`MidPriceReversion`, `OrderBookImbalance`, `MicroMomentum`) per symbol
-5. Construct per-venue `TLSClient` + `WebSocket` + `MarketDataIngester`
+5. Construct `SchemaRegistry` + `SBEVenueParser` for each venue; construct per-venue `TLSClient` + `WebSocket` + `MarketDataIngester`
 6. Launch threads (OBM thread, one ingester thread per venue)

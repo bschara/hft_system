@@ -12,20 +12,20 @@ constexpr double capital_fraction = 0.02;
 class PCModel
 {
 public:
-    PCModel(double _capital, Common::LFQueue<double> *_signals, OrderBook &_order_book, TransactionCostModel &_tcm,
-            RiskModel &_risk_model);
+    PCModel(double _capital, Common::LFQueue<int32_t> *_signals, OrderBook &_order_book,
+            TransactionCostModel &_tcm, RiskModel &_risk_model);
 
-    TradeIntent generatetradeIntent(double signal);
+    TradeIntent generatetradeIntent(int32_t signal);
 
     void run();
 
 private:
-    double initialCapital;
-    double availableCapital;
-    Common::LFQueue<double> &signals;
-    TransactionCostModel &tcm;
-    RiskModel &risk_model;
-    std::unordered_map<double, double> active_orders;
-    OrderBook &order_book;
-    bool running = false;
+    double                    initialCapital;
+    double                    availableCapital;
+    Common::LFQueue<int32_t> &signals;
+    TransactionCostModel     &tcm;
+    RiskModel                &risk_model;
+    std::unordered_map<int32_t, double> active_orders;
+    OrderBook                &order_book;
+    bool                      running = false;
 };

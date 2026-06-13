@@ -65,6 +65,17 @@ Adding a new symbol: add a CSV row. No code change required.
 
 `loadEnv(path)` reads a `.env` file and sets environment variables. Call once at startup before any credential-dependent code.
 
+## PriceUtils (`price_utils.hpp`)
+
+Display and logging helpers — **never call these on the hot path**:
+
+```cpp
+PriceUtils::to_double(int64_t raw, int8_t exp)   // raw × 10^exp → double
+PriceUtils::to_string(int64_t raw, int8_t exp)   // formatted string
+```
+
+Used by `OrderBook::getMidPrice()` (PCModel boundary) and any logging code. Never used inside `SBEDecoder`, `OrderBook::addUpdate()`, or strategy `onMarketData()`.
+
 ## Benchmark (`benchmark/benchmark_utility.hpp`)
 
 `rdtsc_start()` / `rdtsc_end()` — CPU cycle counters for nanosecond-level timing. Uses `CPUID` fences to prevent out-of-order execution from skewing results.
