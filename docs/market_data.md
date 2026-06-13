@@ -89,14 +89,17 @@ Each price level becomes a `MarketUpdate` enqueued to the shared `LFQueue<Market
 ### Key Types
 
 ```cpp
-struct alignas(32) MarketUpdate {
+struct alignas(64) MarketUpdate {
     uint32_t _instrument_id;   // packed venue+symbol index
     Side     _side;            // BUY or SELL
     double   _price;           // actual_price = raw × 10^priceExp
     double   _quantity;        // actual_qty  = raw × 10^qtyExp  (0 = level removed)
-    int64_t  _timestamp;       // exchange event time
+    int64_t  _timestamp;       // exchange event time (microseconds)
+    uint64_t _recv_tsc;        // rdtsc at ingester enqueue; used by OBM for queue-wait latency
 };
 ```
+
+`_recv_tsc` is stamped once per SBE payload (before the bid/ask loops) and copied to every level in that payload. All levels parsed from the same WebSocket frame share the same ingestion timestamp.
 
 ---
 
@@ -162,11 +165,15 @@ Routes `MarketUpdate` objects from the shared queue to the correct `OrderBook` i
 ### Startup Sequence (must complete before any threads launch)
 
 ```cpp
-OrderBookManager obm(update_queue, registry.size());
+OrderBookManager obm(registry.size());   // no queue in constructor
 
 // Register every instrument from the CSV
 for (const auto& r : rows)
     obm.register_instrument(registry.lookup(r.exchange, r.symbol));
+
+// Register one queue per venue (each must have exactly one producer thread)
+obm.add_queue(binance_queue);
+// obm.add_queue(kraken_queue);  // add more venues here, no other changes needed
 
 // Bind strategies to their books (references are stable after reserve)
 OrderBook& btc_book = obm.book_for(btc_id);
@@ -174,6 +181,8 @@ OrderBook& btc_book = obm.book_for(btc_id);
 // Optionally wire the strategy manager
 obm.set_strategy_manager(&strategy_manager);
 ```
+
+The OBM `run()` loop round-robins over all registered queues, so each venue queue is polled every iteration. Each ingester thread writes exclusively to its own queue — the SPSC guarantee is preserved even with multiple venues.
 
 ### Hot Path
 
@@ -185,8 +194,11 @@ obm.set_strategy_manager(&strategy_manager);
 |--------|--------|-------------|
 | `register_instrument(uint32_t id)` | startup only | Allocates one OrderBook slot |
 | `book_for(uint32_t id)` | startup only | Returns stable `OrderBook&` |
+| `add_queue(LFQueue<MarketUpdate>&)` | startup only | Registers a per-venue queue; call once per ingester thread |
 | `set_strategy_manager(StrategyManager*)` | startup only | Wires signal dispatch |
-| `run()` | OBM thread | Consumer loop |
+| `set_ns_per_cycle(double)` | startup only | Sets TSC→ns conversion factor for latency reports |
+| `run()` | OBM thread | Round-robins over all queues; records latency histograms |
+| `report_latencies()` | OBM thread | Prints p50/p99/p999 for all stages; called every 1M updates |
 | `stop()` | any | Sets flag to exit `run()` |
 
 ---

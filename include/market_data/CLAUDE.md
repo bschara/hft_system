@@ -13,16 +13,17 @@ bits[15:0]  = symbol_idx  (0 = BTCUSDT, 1 = ETHUSDT, ...)
 ## MarketUpdate (`order_book/market_update.h`)
 
 ```cpp
-struct alignas(32) MarketUpdate {
+struct alignas(64) MarketUpdate {
     uint32_t _instrument_id;
     Side     _side;           // BUY or SELL
     double   _price;
     double   _quantity;
     int64_t  _timestamp;      // exchange event time (microseconds)
+    uint64_t _recv_tsc;       // rdtsc at ingester enqueue; used for queue-wait latency
 };
 ```
 
-A zero quantity means the level was removed from the book.
+A zero quantity means the level was removed from the book. `_recv_tsc` is stamped once per SBE payload by the ingester and shared across all levels in that payload.
 
 ## OrderBook (`order_book/order_book.h`)
 
@@ -39,21 +40,23 @@ The OrderBook does not know its own symbol; identity is managed externally by `O
 
 ## OrderBookManager (`order_book/order_book_manager.h`)
 
-Owns a `std::vector<OrderBook>` pre-reserved at construction. Startup sequence (must happen before any threads launch):
+Owns a `std::vector<OrderBook>` pre-reserved at construction and a `std::vector<LFQueue<MarketUpdate>*>` of per-venue queues. Startup sequence (must happen before any threads launch):
 ```cpp
-OrderBookManager obm(update_queue, registry.size());
+OrderBookManager obm(registry.size());           // no queue in constructor
 for (auto& r : rows)
     obm.register_instrument(registry.lookup(r.exchange, r.symbol));
-OrderBook& btc_book = obm.book_for(btc_id);  // stable reference — safe to hold
+obm.add_queue(binance_queue);                    // one call per venue
+// obm.add_queue(kraken_queue);
+OrderBook& btc_book = obm.book_for(btc_id);     // stable reference — safe to hold
 ```
 
-Hot path (`run()` thread): reads `LFQueue<MarketUpdate>`, calls `passUpdateToOrderbook()` which routes by `_instrument_id` and then calls `StrategyManager::onMarketData()`.
+Hot path (`run()` thread): reads `LFQueue<MarketUpdate>`, stamps `dequeue_tsc`, calls `passUpdateToOrderbook()` which routes by `_instrument_id`, wraps `addUpdate()` and `onMarketData()` with `rdtsc` fences for per-stage latency histograms, then calls `StrategyManager::onMarketData()`. Every 1,000,000 updates, `report_latencies()` prints p50/p99/p999 to stdout.
 
 ## MarketDataIngester (`data_ingester/market_data_ingester.h`)
 
 One instance per venue. Owns references to a `TLSClient` and `WebSocket` (single connection — Binance combined streams multiplex all symbols). Constructor:
 ```cpp
-MarketDataIngester ingester(update_queue, tls, ws, registry, "BINANCE");
+MarketDataIngester ingester(binance_queue, tls, ws, registry, "BINANCE");
 ingester.startReceiving("/stream?streams=btcusdt@depth/ethusdt@depth", "");
 ```
 
@@ -68,6 +71,7 @@ ingester.startReceiving("/stream?streams=btcusdt@depth/ethusdt@depth", "");
 ## Adding a New Venue
 
 1. Add rows to `exchanges_data.csv` with the new exchange name
-2. In `main.cpp`, construct a new `TLSClient`, `WebSocket`, and `MarketDataIngester` for that venue
-3. Launch a new ingester thread writing to the same `update_queue`
-4. If the venue uses a different wire format than Binance SBE, subclass `MarketDataIngester` or add template-ID dispatch inside `parseAndEnqueueUpdates()`
+2. In `main.cpp`, construct a dedicated `LFQueue<MarketUpdate>` for that venue, then a `TLSClient`, `WebSocket`, and `MarketDataIngester` pointing at it
+3. Call `obm.add_queue(new_venue_queue)` before launching threads
+4. Launch a new ingester thread — it writes exclusively to its own queue (SPSC preserved)
+5. If the venue uses a different wire format than Binance SBE, subclass `MarketDataIngester` or add template-ID dispatch inside `parseAndEnqueueUpdates()`

@@ -52,8 +52,9 @@ These need no CMake library target and are included directly.
 ## Entry Point
 
 `src/main.cpp` wires all components together:
-1. Load env, parse CSV, build `VenueRegistry`
-2. Construct `LFQueue`s, `OrderBookManager`, register instruments
-3. Construct `StrategyManager`, bind per-symbol strategies
-4. Construct per-venue `TLSClient` + `WebSocket` + `MarketDataIngester`
-5. Launch threads (OBM thread, one ingester thread per venue)
+1. Load env, parse CSV, build `VenueRegistry`; calibrate TSC (`calibrate_tsc_ns()`)
+2. Construct one `LFQueue<MarketUpdate>` per venue; construct `LFQueue<double>` for signals (capacity 8192)
+3. Construct `OrderBookManager`, register instruments, call `add_queue()` for each venue queue
+4. Construct `StrategyManager`; register all three strategy types (`MidPriceReversion`, `OrderBookImbalance`, `MicroMomentum`) per symbol
+5. Construct per-venue `TLSClient` + `WebSocket` + `MarketDataIngester`
+6. Launch threads (OBM thread, one ingester thread per venue)

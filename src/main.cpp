@@ -9,12 +9,15 @@
 #include "utils/lock_free_queue.hpp"
 #include "utils/tls_client/tls_client.h"
 #include "utils/websocket/websocket.h"
+#include "utils/latency_tracker.hpp"
 
 #include "market_data/order_book/order_book_manager.h"
 #include "market_data/data_ingester/market_data_ingester.h"
 
 #include "strategies/strategy_manager.hpp"
 #include "strategies/mean_reversion/midprice_reversion.h"
+#include "strategies/mean_reversion/orderbook_imbalance.h"
+#include "strategies/trend_following/micro_momentum.h"
 
 int main()
 {
@@ -31,16 +34,22 @@ int main()
     assert(registry.lookup("BINANCE", "ETHUSDT") == 0x00000001);
     assert(registry.lookup("BINANCE", "BNBUSDT") == 0x00000002);
 
-    // --- Queues ---
-    Common::LFQueue<MarketUpdate> update_queue(4096);
-    Common::LFQueue<double>       signals_queue(1024);
+    // --- TSC calibration ---
+    double ns_per_cycle = Common::calibrate_tsc_ns();
+    std::printf("[main] TSC calibration: %.3f ns/cycle\n", ns_per_cycle);
+
+    // --- Per-venue queues (one per ingester thread — preserves SPSC guarantee) ---
+    Common::LFQueue<MarketUpdate> binance_queue(4096);
+    Common::LFQueue<double>       signals_queue(8192);
 
     // --- OrderBookManager ---
-    OrderBookManager obm(update_queue, registry.size());
+    OrderBookManager obm(registry.size());
     for (const auto &r : rows)
         obm.register_instrument(registry.lookup(r.exchange, r.symbol));
+    obm.add_queue(binance_queue);
+    obm.set_ns_per_cycle(ns_per_cycle);
 
-    // --- Strategies ---
+    // --- Strategies (all three types, one instance per symbol) ---
     StrategyManager strategy_manager(&signals_queue);
     obm.set_strategy_manager(&strategy_manager);
 
@@ -48,13 +57,29 @@ int main()
     const uint32_t eth_id = registry.lookup("BINANCE", "ETHUSDT");
     const uint32_t bnb_id = registry.lookup("BINANCE", "BNBUSDT");
 
-    MidPriceReversion btc_strat(obm.book_for(btc_id));
-    MidPriceReversion eth_strat(obm.book_for(eth_id));
-    MidPriceReversion bnb_strat(obm.book_for(bnb_id));
+    MidPriceReversion  btc_mr(obm.book_for(btc_id));
+    OrderBookImbalance btc_oi(obm.book_for(btc_id));
+    MicroMomentum      btc_mm(obm.book_for(btc_id), binance_queue);
 
-    strategy_manager.register_strategy(btc_id, &btc_strat);
-    strategy_manager.register_strategy(eth_id, &eth_strat);
-    strategy_manager.register_strategy(bnb_id, &bnb_strat);
+    MidPriceReversion  eth_mr(obm.book_for(eth_id));
+    OrderBookImbalance eth_oi(obm.book_for(eth_id));
+    MicroMomentum      eth_mm(obm.book_for(eth_id), binance_queue);
+
+    MidPriceReversion  bnb_mr(obm.book_for(bnb_id));
+    OrderBookImbalance bnb_oi(obm.book_for(bnb_id));
+    MicroMomentum      bnb_mm(obm.book_for(bnb_id), binance_queue);
+
+    strategy_manager.register_strategy(btc_id, &btc_mr);
+    strategy_manager.register_strategy(btc_id, &btc_oi);
+    strategy_manager.register_strategy(btc_id, &btc_mm);
+
+    strategy_manager.register_strategy(eth_id, &eth_mr);
+    strategy_manager.register_strategy(eth_id, &eth_oi);
+    strategy_manager.register_strategy(eth_id, &eth_mm);
+
+    strategy_manager.register_strategy(bnb_id, &bnb_mr);
+    strategy_manager.register_strategy(bnb_id, &bnb_oi);
+    strategy_manager.register_strategy(bnb_id, &bnb_mm);
 
     // --- Binance ingester ---
     // buildBinanceURL() returns the full wss:// URL; extract just the path portion.
@@ -64,7 +89,7 @@ int main()
     utility::TLSClient binance_tls("stream.binance.com", 9443);
     utility::WebSocket binance_ws(binance_tls, "stream.binance.com", "");
 
-    MarketDataIngester binance_ingester(update_queue, binance_tls, binance_ws,
+    MarketDataIngester binance_ingester(binance_queue, binance_tls, binance_ws,
                                         registry, "BINANCE");
 
     // --- Launch threads ---

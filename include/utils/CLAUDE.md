@@ -67,4 +67,9 @@ Adding a new symbol: add a CSV row. No code change required.
 
 ## Benchmark (`benchmark/benchmark_utility.hpp`)
 
-`rdtsc_start()` / `rdtsc_end()` — CPU cycle counters for nanosecond-level timing. Only for profiling; remove from production hot paths.
+`rdtsc_start()` / `rdtsc_end()` — CPU cycle counters for nanosecond-level timing. Uses `CPUID` fences to prevent out-of-order execution from skewing results.
+
+## LatencyTracker (`latency_tracker.hpp`)
+
+`LatencyHistogram` — 64-bucket log₂ histogram for per-stage latency; O(1) `record()`, no allocations, single-threaded.
+`calibrate_tsc_ns()` — 10 ms wall-clock spin to compute nanoseconds per TSC cycle. Call once at startup.

@@ -50,8 +50,9 @@ exchanges_data.csv  ──→  StreamConfig  ──→  VenueRegistry
 - **Multi-venue, multi-symbol** — `VenueRegistry` maps `(exchange, symbol)` to a packed `uint32_t instrument_id`; adding a symbol requires only a new CSV row
 - **Lock-free data pipeline** — `LFQueue<T>` SPSC ring buffers for zero-mutex cross-thread communication
 - **Circular buffer order book** — 256-level LOB with O(1) update, modular-arithmetic indexing; zero-quantity removal and sparse-book protection built in
-- **Per-symbol strategy dispatch** — `StrategyManager` routes each market update only to strategies registered for that instrument
+- **Per-symbol strategy dispatch** — `StrategyManager` routes each market update only to strategies registered for that instrument; three strategies active per symbol (MidPriceReversion, OrderBookImbalance, MicroMomentum), producing three signals per update
 - **SBE binary parser** — Decodes Binance WebSocket SBE (Simple Binary Encoding) depth streams; symbol extracted per-payload and stamped on every `MarketUpdate`
+- **Pipeline latency measurement** — Per-stage nanosecond histograms (queue wait, book update, strategy dispatch) using rdtsc; TSC calibrated to wall-clock at startup; p50/p99/p999 reported every 1M updates
 - **Transaction cost model** — Spread, slippage, and market impact estimation before order submission
 - **Pre-trade risk checks** — Position limits, notional exposure, leverage, and trade size guards
 - **Memory pool** — Pre-allocated object pool to avoid heap allocation on the hot path
@@ -83,11 +84,12 @@ hft_system/
 │       ├── lock_free_queue.hpp         # SPSC ring buffer (header-only)
 │       ├── memory_pool.hpp             # Pre-allocated pool (header-only)
 │       ├── env_loader.hpp              # .env file loader (header-only)
+│       ├── latency_tracker.hpp         # Log2 histogram + TSC calibration (header-only)
 │       ├── stream_config/              # CSV parser + URL builder
 │       ├── websocket/
 │       ├── tls_client/
 │       ├── http_client/
-│       ├── benchmark/
+│       ├── benchmark/                  # rdtsc_start / rdtsc_end fences
 │       ├── macros.h
 │       └── types.h
 ├── src/
@@ -224,9 +226,9 @@ Tests live under `tests/`. Current coverage:
 | Circular buffer order book       | Complete — bugs fixed, 27 unit tests passing              |
 | OrderBookManager (multi-symbol)  | Complete — dynamic routing by instrument_id               |
 | Strategy framework + signals     | Complete — per-symbol dispatch                            |
-| Mean reversion strategy          | Complete                                                  |
-| Order book imbalance             | Complete                                                  |
-| Micro-momentum                   | Complete                                                  |
+| Mean reversion strategy          | Complete — wired, one instance per symbol                 |
+| Order book imbalance             | Complete — wired, inherits Strategy, micro-price signal   |
+| Micro-momentum                   | Complete — wired, 20-tick window, normalized to [-1, 1]   |
 | Transaction cost model           | Complete                                                  |
 | Position/capital model           | Functional (simplified)                                   |
 | Risk model                       | Interface defined, checks implemented                     |
@@ -234,6 +236,7 @@ Tests live under `tests/`. Current coverage:
 | Order Management System          | Stub                                                      |
 | FIX order gateway                | Partial (Ed25519 signing done, FIX session commented out) |
 | Main entry point / thread wiring | Complete — all components wired, threads launched         |
+| Pipeline latency measurement     | Complete — per-stage rdtsc histograms, p50/p99/p999 output |
 
 ## Docs
 

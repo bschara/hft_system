@@ -45,14 +45,18 @@ On each `onMarketData()` call, the manager:
 
 `StrategyManager::onMarketData()` is called by `OrderBookManager` on the OBM thread immediately after each book update. Strategies must be fast — no I/O, no heap allocation.
 
-Typical wiring in `main.cpp`:
+Typical wiring in `main.cpp` (all three strategy types per symbol):
 ```cpp
-MidPriceReversion btc_strat(obm.book_for(btc_id));
-MidPriceReversion eth_strat(obm.book_for(eth_id));
+MidPriceReversion  btc_mr(obm.book_for(btc_id));
+OrderBookImbalance btc_oi(obm.book_for(btc_id));
+MicroMomentum      btc_mm(obm.book_for(btc_id), binance_queue);
 
-strategy_manager.register_strategy(btc_id, &btc_strat);
-strategy_manager.register_strategy(eth_id, &eth_strat);
+strategy_manager.register_strategy(btc_id, &btc_mr);
+strategy_manager.register_strategy(btc_id, &btc_oi);
+strategy_manager.register_strategy(btc_id, &btc_mm);
 ```
+
+Each registered strategy produces one signal per `MarketUpdate`, so three signals are enqueued per update for a symbol with three registered strategies.
 
 ---
 
@@ -81,14 +85,21 @@ MidPriceReversion strat(obm.book_for(btc_id));
 ### OrderBookImbalance
 
 **Header:** `include/strategies/mean_reversion/orderbook_imbalance.h`
+**Source:** `src/strategies/mean_reversion/orderbook_imbalance.cpp`
 
-Measures the relative imbalance between bid and ask volume near the top of book:
+Computes the **micro-price** — a quantity-weighted average that shifts toward the side with more volume — and compares it to the volume-weighted mid-price:
 
 ```
-OBI = (bid_qty - ask_qty) / (bid_qty + ask_qty)
+microPrice = (askPrice × bidQty + bidPrice × askQty) / (bidQty + askQty)
+signal     = (microPrice - midPrice) / spread
 ```
 
-Result is in `[-1, 1]`. A strongly positive OBI (more bid volume than ask) suggests upward price pressure.
+Clamped to `[-3, 3]`, then normalized to `[-1, 1]`. A positive signal means micro-price is above mid (bid-side pressure) — expect upward drift, so buy. Constructor takes an `OrderBook&`; `onMarketData()` reads top-of-book prices and quantities directly from the book after each update.
+
+```cpp
+OrderBookImbalance strat(obm.book_for(btc_id));
+strategy_manager.register_strategy(btc_id, &strat);
+```
 
 ---
 
@@ -97,14 +108,20 @@ Result is in `[-1, 1]`. A strongly positive OBI (more bid volume than ask) sugge
 ### MicroMomentum
 
 **Header:** `include/strategies/trend_following/micro_momentum.h`
+**Source:** `src/strategies/trend_following/micro_momentum.cpp`
 
-Tracks aggressive order flow — the count of orders lifting the ask (aggressive buys) vs. hitting the bid (aggressive sells) over a short window.
+Tracks the imbalance of BUY-side vs SELL-side depth updates over a rolling window (`kMomentumWindow = 20` updates):
 
 ```
-momentum = (aggressive_buys - aggressive_sells) / total_aggressive_orders
+signal = (bid_updates - ask_updates) / kMomentumWindow
 ```
 
-Produces a signal in `[-1, 1]`. Positive momentum signals continued upward drift; negative signals downward.
+Normalized to `[-1, 1]`. Counters reset at each window boundary. A positive signal means more bid-side activity in the current window — buy pressure. Constructor takes an `OrderBook&` and a `LFQueue<MarketUpdate>&` (bound to the venue's ingestion queue for future windowing extensions).
+
+```cpp
+MicroMomentum strat(obm.book_for(btc_id), binance_queue);
+strategy_manager.register_strategy(btc_id, &strat);
+```
 
 ---
 

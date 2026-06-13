@@ -17,8 +17,7 @@ double MidPriceReversion::generate_reversion_signal(double last_trade_price)
 
     double raw_signal = (last_trade_price - midPrice) / spread;
     raw_signal = std::clamp(raw_signal, -3.0, 3.0);
-    std::cout << "raw signal " << std::endl;
-    return raw_signal / 3.0; // normalized to [-1, 1]
+    return raw_signal / 3.0;
 }
 
 double MidPriceReversion::onMarketData(const MarketUpdate *marketUpdate)

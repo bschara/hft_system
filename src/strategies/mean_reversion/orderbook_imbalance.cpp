@@ -1,4 +1,5 @@
 #include "strategies/mean_reversion/orderbook_imbalance.h"
+#include <algorithm>
 
 OrderBookImbalance::OrderBookImbalance(OrderBook &ob) : order_book(ob) {}
 
@@ -33,4 +34,12 @@ double OrderBookImbalance::generate_obi(double askPrice, double askQty,
     double signal = (microPrice - midPrice) / spread;
     signal = std::clamp(signal, -3.0, 3.0);
     return signal / 3.0;
+}
+
+double OrderBookImbalance::onMarketData(const MarketUpdate * /*update*/)
+{
+    return generate_obi(
+        order_book.getBestAskPrice(),    order_book.getBestAskQuantity(),
+        order_book.getBestBidPrice(),    order_book.getBestBidQuantity()
+    );
 }

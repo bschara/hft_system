@@ -52,6 +52,8 @@ target_link_libraries(MainExec
         HttpClient
         StreamConfig
         MidPriceReversion
+        OrderBookImbalance
+        MicroMomentum
         HistoricalDataAggergator
         PCModel
         OpenSSL::SSL

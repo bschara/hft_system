@@ -31,13 +31,13 @@ Signals are written to a `LFQueue<double>` consumed by `PCModel`.
 
 ## Available Strategies
 
-| Class | File | Signal basis |
-|-------|------|-------------|
-| `MidPriceReversion` | `mean_reversion/midprice_reversion.h` | Deviation of mid-price from volume-weighted moving average |
-| `OrderBookImbalance` | `mean_reversion/orderbook_imbalance.h` | Bid vs ask quantity ratio at top-of-book |
-| `MicroMomentum` | `trend_following/micro_momentum.h` | Aggressive order flow: lifting ask vs hitting bid |
+| Class | File | Signal basis | Status |
+|-------|------|-------------|--------|
+| `MidPriceReversion` | `mean_reversion/midprice_reversion.h` | `(lastPrice - midPrice) / spread`, clamped, normalized | Wired |
+| `OrderBookImbalance` | `mean_reversion/orderbook_imbalance.h` | Micro-price vs vol-weighted mid, spread-normalized | Wired |
+| `MicroMomentum` | `trend_following/micro_momentum.h` | BUY vs SELL depth updates over 20-tick window | Wired |
 
-Each strategy holds an `OrderBook&` reference bound at construction. The reference is stable (see `OrderBookManager` invariants in `market_data/CLAUDE.md`).
+Each strategy holds an `OrderBook&` reference bound at construction. The reference is stable (see `OrderBookManager` invariants in `market_data/CLAUDE.md`). All three are registered per symbol in `main.cpp` — each `MarketUpdate` produces three signals.
 
 ## Adding a New Strategy
 

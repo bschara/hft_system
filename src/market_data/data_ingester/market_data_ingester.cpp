@@ -125,6 +125,9 @@ void MarketDataIngester::parseAndEnqueueUpdates(std::span<const uint8_t> payload
         }
     }
 
+    // Stamp ingestion time once per payload; all levels in this SBE message share it.
+    uint64_t recv_tsc = rdtsc_start();
+
     // --- Bid loop ---
     offset += 4; // skip bidBlockLen + numBids header
     for (uint16_t t = 0; t < numBids; ++t)
@@ -135,7 +138,9 @@ void MarketDataIngester::parseAndEnqueueUpdates(std::span<const uint8_t> payload
         double price = read_int64_le(offset)     * priceScale;
         double qty   = read_int64_le(offset + 8) * qtyScale;
 
-        *updatesQueue.getNextToWriteTo() = MarketUpdate(instrument_id, Side::BUY, price, qty, eventTime);
+        auto* slot = updatesQueue.getNextToWriteTo();
+        *slot = MarketUpdate(instrument_id, Side::BUY, price, qty, eventTime);
+        slot->_recv_tsc = recv_tsc;
         updatesQueue.updateWriteIndex();
 
         offset += bidBlockLen;
@@ -151,7 +156,9 @@ void MarketDataIngester::parseAndEnqueueUpdates(std::span<const uint8_t> payload
         double price = read_int64_le(offset)     * priceScale;
         double qty   = read_int64_le(offset + 8) * qtyScale;
 
-        *updatesQueue.getNextToWriteTo() = MarketUpdate(instrument_id, Side::SELL, price, qty, eventTime);
+        auto* slot = updatesQueue.getNextToWriteTo();
+        *slot = MarketUpdate(instrument_id, Side::SELL, price, qty, eventTime);
+        slot->_recv_tsc = recv_tsc;
         updatesQueue.updateWriteIndex();
 
         offset += askBlockLen;

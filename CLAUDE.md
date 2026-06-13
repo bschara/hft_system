@@ -64,7 +64,7 @@ All inter-thread communication via `LFQueue<T>` (lock-free SPSC ring buffer). No
 |-----------|---------------|---------|
 | `include/market_data/` | — | Market data types and pipeline headers |
 | `include/strategies/` | — | Strategy interface and manager |
-| `include/utils/` | — | Lock-free queue, memory pool, TLS, WebSocket, StreamConfig |
+| `include/utils/` | — | Lock-free queue, memory pool, TLS, WebSocket, StreamConfig, LatencyTracker |
 | `src/market_data/order_book/` | `OrderBook` | OrderBook + OrderBookManager |
 | `src/market_data/data_ingester/` | `MarketDataIngester` | WebSocket SBE parser |
 | `src/strategies/` | `MidPriceReversion`, `OrderBookImbalance`, `MicroMomentum` | Signal generators |

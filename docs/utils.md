@@ -127,6 +127,34 @@ Uses `CPUID` as a serializing instruction to prevent CPU out-of-order execution 
 
 ---
 
+## LatencyTracker
+
+**Header:** `include/utils/latency_tracker.hpp` (header-only)
+
+Allocation-free per-stage latency histograms built on `rdtsc`. Used by `OrderBookManager` to measure queue wait, book update, strategy dispatch, and total OBM latency.
+
+### LatencyHistogram
+
+```cpp
+Common::LatencyHistogram h("my_stage");
+
+h.record(end_tsc - start_tsc);   // O(1) — single clz + bucket increment
+h.report(ns_per_cycle);          // prints p50/p99/p999 to stdout
+h.reset();                       // clear all buckets
+```
+
+Internally a 64-bucket log₂ histogram: bucket `b` holds all samples in `[2^b, 2^(b+1) - 1]` cycles. Covers 1 cycle to ~9×10¹⁸ cycles with constant-time recording. The struct is allocation-free and has no atomics — intended for use within a single thread.
+
+### TSC Calibration
+
+```cpp
+double ns_per_cycle = Common::calibrate_tsc_ns();
+```
+
+Performs a ~10 ms busy-wait, compares the rdtsc delta to the `CLOCK_MONOTONIC` delta, and returns nanoseconds per TSC cycle. Call once at startup before launching threads; pass the result to `OrderBookManager::set_ns_per_cycle()`.
+
+---
+
 ## Macros
 
 **Header:** `include/utils/macros.h`

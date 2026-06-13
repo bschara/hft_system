@@ -78,7 +78,7 @@ All inter-thread communication via `LFQueue<T>` (SPSC, lock-free). No mutexes on
 - **`LFQueue<T>`** — ring buffer, capacity set at construction, heap-allocated once
 - **`MemPool<T>`** — pre-allocated object pool; zero heap allocation after construction
 - **`OrderBook`** — `std::array<PriceLevel, 256>` per side; no heap after construction; stored in a `std::vector` in `OrderBookManager` that is `reserve()`d at startup and never resized
-- **`MarketUpdate`** — `alignas(32)`, fits in one cache line
+- **`MarketUpdate`** — `alignas(64)`, fits in one cache line; carries `_recv_tsc` (ingestion timestamp) alongside the exchange `_timestamp`
 
 ## Key Design Decisions
 
@@ -102,13 +102,15 @@ index = (bestIndex + round((price - bestPrice) / TICK_SIZE) + LOB_DEPTH) % LOB_D
 ```
 Higher index = higher price for both sides. `bestBidIndex` holds the highest bid; `bestAskIndex` holds the lowest ask. Updates more than `MAX_SHIFT_STEP` (64) ticks outside the current window are silently dropped to prevent index overflow. This gives O(1) update and lookup at the cost of a fixed price range window (256 × tick size). Zero-quantity updates delete a level in-place; the best/worst endpoint is updated by scanning for the next active slot.
 
-### Lock-Free Queue (SPSC)
+### Lock-Free Queue (SPSC) — Per-Venue Design
 
-`LFQueue<T>` works without locks because exactly one thread writes and one thread reads. Atomic indices prevent torn reads. Adding a second producer (second venue ingester) requires either a dedicated queue per venue or an MPSC implementation — currently all ingesters share one queue, which is safe because the Binance combined-stream model means exactly one ingester thread.
+`LFQueue<T>` works without locks because exactly one thread writes and one thread reads. Atomic indices prevent torn reads. Each venue gets its own dedicated `LFQueue<MarketUpdate>`, registered with the OBM via `add_queue()`. The OBM round-robins over all registered queues in `run()`. This preserves the SPSC guarantee regardless of how many venues are active. Adding a new venue requires only: create a queue, construct an ingester for it, call `obm.add_queue()`.
 
 ### Per-Symbol Strategy Dispatch
 
 `StrategyManager` maintains a `std::unordered_map<uint32_t, std::vector<Strategy*>>` keyed by `instrument_id`. On each update it dispatches only to strategies registered for that instrument. Catch-all strategies (registered without an instrument_id) receive all updates. This eliminates per-update branching inside strategies.
+
+Currently three strategies are registered per symbol (BTC, ETH, BNB): `MidPriceReversion`, `OrderBookImbalance`, and `MicroMomentum`. Each `MarketUpdate` produces three signals written to `LFQueue<double>` (capacity 8192).
 
 ### Signal Normalization
 
@@ -140,6 +142,21 @@ MainExec
 └── StreamConfig
     └── CSVReader (csv.h — header-only)
 ```
+
+## Latency Measurement
+
+Pipeline latency is measured in the OBM thread using `rdtsc` fences (no locks, no allocations). Four stages are tracked per update:
+
+| Histogram | Measured interval |
+|-----------|------------------|
+| `queue_wait` | `dequeue_tsc − update._recv_tsc` — time the update sat in `LFQueue` |
+| `book_update` | `rdtsc` around `OrderBook::addUpdate()` |
+| `strategy` | `rdtsc` around `StrategyManager::onMarketData()` |
+| `obm_total` | Full OBM processing time (dequeue → end of strategy dispatch) |
+
+Each histogram is a 64-bucket log₂ accumulator (`LatencyHistogram` in `include/utils/latency_tracker.hpp`). Every 1,000,000 updates, `OrderBookManager::report_latencies()` prints p50/p99/p999 to stdout. TSC frequency is calibrated against `CLOCK_MONOTONIC` during a 10 ms spin at startup (`Common::calibrate_tsc_ns()`).
+
+The ingester stamps `_recv_tsc = rdtsc_start()` once per SBE payload before enqueuing any level — all price levels in a payload share the same ingestion timestamp.
 
 ## File Conventions
 
