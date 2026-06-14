@@ -1,12 +1,14 @@
-#include "market_data/order_book/order_book.h"
+#pragma once
 
-class OrderBookImbalance
+#include "market_data/order_book/order_book.h"
+#include "strategies/strategy.h"
+
+class OrderBookImbalance : public Strategy
 {
 public:
-    OrderBookImbalance(OrderBook &ob);
+    explicit OrderBookImbalance(OrderBook &ob);
 
-    // if positive sell ||| negative buy
-    double generate_obi(double askPrice, double askQuantity, double bidPrice, double bidQuantity);
+    int32_t onMarketData(const MarketUpdate *marketUpdate) override;
 
 private:
     OrderBook &order_book;

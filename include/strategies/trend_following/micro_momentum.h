@@ -1,16 +1,20 @@
+#pragma once
+
 #include "market_data/order_book/order_book.h"
+#include "strategies/strategy.h"
 
-// for crypto use window of 5-30 ticks
-
-class MicroMomentum
+class MicroMomentum : public Strategy
 {
 public:
-    MicroMomentum(OrderBook &ob, Common::LFQueue<MarketUpdate> &muq);
+    static constexpr uint32_t kMomentumWindow = 20;
 
-    // positive and increasing -> go long |||| negative and decreasing -> go short
-    double getMomentumSignal(double numAggBids, double numAggAsks);
+    explicit MicroMomentum(OrderBook &ob);
+
+    int32_t onMarketData(const MarketUpdate *marketUpdate) override;
 
 private:
     OrderBook &order_book;
-    Common::LFQueue<MarketUpdate> &market_update_queue;
+    uint32_t   agg_bids_     = 0;
+    uint32_t   agg_asks_     = 0;
+    uint32_t   window_count_ = 0;
 };

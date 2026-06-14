@@ -2,7 +2,7 @@
 
 ## LFQueue — Lock-Free Queue
 
-**Header:** `include/utils/lock_free_queue.hpp`
+**Header:** `include/utils/containers/lock_free_queue.hpp`
 
 Single-producer / single-consumer ring buffer. No mutexes; uses `std::atomic` indices.
 
@@ -30,7 +30,7 @@ if (item) {
 
 ## MemPool — Memory Pool
 
-**Header:** `include/utils/memory_pool.hpp`
+**Header:** `include/utils/containers/memory_pool.hpp`
 
 Pre-allocated pool of `N` objects. Avoids heap allocation on the hot path by reusing freed slots.
 
@@ -50,8 +50,8 @@ pool.deallocate(o);           // marks slot free for reuse
 
 ## TLSClient
 
-**Header:** `include/utils/tls_client/tls_client.h`
-**Source:** `src/utils/tls_client/tls_client.cpp`
+**Header:** `include/utils/net/tls_client/tls_client.h`
+**Source:** `src/utils/net/tls_client/tls_client.cpp`
 
 OpenSSL wrapper for TLS 1.2/1.3 TCP connections.
 
@@ -71,8 +71,8 @@ int fd = tls.fd();   // raw socket FD, useful for select/epoll
 
 ## WebSocket
 
-**Header:** `include/utils/websocket/websocket.h`
-**Source:** `src/utils/websocket/websocket.cpp`
+**Header:** `include/utils/net/websocket/websocket.h`
+**Source:** `src/utils/net/websocket/websocket.cpp`
 
 RFC 6455 WebSocket client built on top of `TLSClient`.
 
@@ -83,19 +83,22 @@ ws.perform_handshake("/stream?streams=btcusdt@depth");
 ws.send_frame(payload, len);           // send a text/binary frame
 WebSocketFrame frame = ws.read_frame(); // blocking read
 // frame.fin, frame.opcode, frame.payload (std::span<uint8_t>)
+
+uint64_t tsc = ws.io_done_tsc();       // TSC stamp from after last recv_exact()
 ```
 
 - Handles **ping/pong** automatically — a ping frame received during `read_frame()` is replied to immediately
 - Generates a random 4-byte mask for each sent frame (required by the RFC)
 - Supports 7-bit, 16-bit, and 64-bit payload length encoding
 - `WebSocketFrame.payload` is a span into an internal buffer; copy before the next `read_frame()` call
+- `io_done_tsc()` returns the TSC timestamp written immediately after all `recv_exact()` calls complete, before mask XOR and opcode check — used by `MarketDataIngester` to split `ws_io` (network wait) from `ws_cpu` (decode work)
 
 ---
 
 ## HttpClient
 
-**Header:** `include/utils/http_client/http_client.h`
-**Source:** `src/utils/http_client/http_client.cpp`
+**Header:** `include/utils/net/http_client/http_client.h`
+**Source:** `src/utils/net/http_client/http_client.cpp`
 
 Minimal libcurl wrapper for HTTP GET requests.
 
@@ -112,7 +115,7 @@ std::string response = http.get("https://api.binance.com/api/v3/klines?symbol=BT
 
 ## Benchmark Utility
 
-**Header:** `include/utils/benchmark/benchmark_utility.hpp`
+**Header:** `include/utils/perf/benchmark/benchmark_utility.hpp`
 
 x86 CPU cycle counter for latency measurement.
 
@@ -127,9 +130,37 @@ Uses `CPUID` as a serializing instruction to prevent CPU out-of-order execution 
 
 ---
 
+## LatencyTracker
+
+**Header:** `include/utils/perf/latency_tracker.hpp` (header-only)
+
+Allocation-free per-stage latency histograms built on `rdtsc`. Used by `OrderBookManager` to measure queue wait, book update, strategy dispatch, and total OBM latency.
+
+### LatencyHistogram
+
+```cpp
+Common::LatencyHistogram h("my_stage");
+
+h.record(end_tsc - start_tsc);   // O(1) — single clz + bucket increment
+h.report(ns_per_cycle);          // prints p50/p99/p999 to stdout
+h.reset();                       // clear all buckets
+```
+
+Internally a 64-bucket log₂ histogram: bucket `b` holds all samples in `[2^b, 2^(b+1) - 1]` cycles. Covers 1 cycle to ~9×10¹⁸ cycles with constant-time recording. The struct is allocation-free and has no atomics — intended for use within a single thread.
+
+### TSC Calibration
+
+```cpp
+double ns_per_cycle = Common::calibrate_tsc_ns();
+```
+
+Performs a ~10 ms busy-wait, compares the rdtsc delta to the `CLOCK_MONOTONIC` delta, and returns nanoseconds per TSC cycle. Call once at startup before launching threads; pass the result to `OrderBookManager::set_ns_per_cycle()`.
+
+---
+
 ## Macros
 
-**Header:** `include/utils/macros.h`
+**Header:** `include/utils/core/macros.h`
 
 ```cpp
 LIKELY(x)    // __builtin_expect((x), 1) — branch prediction hint
@@ -145,7 +176,7 @@ Use `LIKELY`/`UNLIKELY` on hot-path conditionals where one branch dominates. Use
 
 ## EnvLoader
 
-**Header:** `include/utils/env_loader.hpp`
+**Header:** `include/utils/config/env_loader.hpp`
 
 Reads a `.env` file and sets each `KEY=VALUE` pair as an environment variable via `setenv()`.
 
@@ -160,7 +191,7 @@ Call once at startup before any component that reads credentials. Multi-line val
 
 ## CSV Reader
 
-**Header:** `include/utils/csv.h`
+**Header:** `include/utils/config/csv.h`
 
 Header-only CSV parser (Ben Strasser, MIT license). Template parameter is column count.
 

@@ -1,8 +1,14 @@
 #include "market_data/data_ingester/market_data_ingester.h"
-#include "utils/benchmark/benchmark_utility.hpp"
+#include "utils/perf/benchmark/benchmark_utility.hpp"
+#include <cstdio>
+#include <iostream>
 
-MarketDataIngester::MarketDataIngester(Common::LFQueue<MarketUpdate> &mDataQueue, utility::TLSClient &tlsClient,
-                                       utility::WebSocket &socketClient) : updatesQueue(mDataQueue), tls_client(tlsClient), web_socket(socketClient)
+MarketDataIngester::MarketDataIngester(Common::LFQueue<MarketUpdate> &mDataQueue,
+                                       utility::TLSClient &tlsClient,
+                                       utility::WebSocket &socketClient,
+                                       VenueParser &parser)
+    : updatesQueue(mDataQueue), tls_client(tlsClient),
+      web_socket(socketClient), parser_(parser)
 {
 }
 
@@ -13,12 +19,8 @@ MarketDataIngester::~MarketDataIngester()
 
 void MarketDataIngester::startReceiving(std::string_view path, std::string_view protocol)
 {
-    std::string queryString = " ";
-
     if (!running)
-    {
         running = true;
-    }
 
     if (!tls_client.connect())
     {
@@ -32,157 +34,41 @@ void MarketDataIngester::startReceiving(std::string_view path, std::string_view 
         return;
     }
 
-    if (!web_socket.send_frame(std::span<const uint8_t>(
-            reinterpret_cast<const uint8_t *>(queryString.data()),
-            queryString.size())))
-    {
-        std::cerr << "Failed to send subscription\n";
-        return;
-    }
-
-    std::cout << "Subscribed to btcusdt@trade\n";
-
     while (running)
     {
-        uint64_t start = rdtsc_start();
+        uint64_t t_start = rdtsc_start();
         auto frame = web_socket.read_frame();
-        uint64_t end = rdtsc_end();
-        std::cout << "CPU cycles: " << (end - start) << std::endl;
+        uint64_t t_frame_done = rdtsc_end();
+
         if (!frame)
             continue;
 
-        if (frame->opcode == 0x2) // binary data
+        uint64_t t_io = web_socket.io_done_tsc();
+        hist_ws_io_   .record(t_io          - t_start);
+        hist_ws_cpu_  .record(t_frame_done  - t_io);
+        hist_ws_total_.record(t_frame_done  - t_start);
+
+        if (frame->opcode == 0x2)
         {
-            parseAndEnqueueUpdates(frame->payload);
+            uint64_t t_sbe0 = rdtsc_start();
+            parser_.parse(frame->payload, updatesQueue);
+            uint64_t t_sbe1 = rdtsc_end();
+            hist_sbe_.record(t_sbe1 - t_sbe0);
         }
+
+        if (++ws_frame_count_ % kWsReportInterval == 0)
+            report_ws_latencies();
     }
 }
 
-void MarketDataIngester::parseAndEnqueueUpdates(std::span<const uint8_t> payload)
+void MarketDataIngester::report_ws_latencies() const
 {
-    auto read_int64_le = [&](size_t offset) -> int64_t
-    {
-        if (offset + sizeof(int64_t) > payload.size())
-            return 0;
-        int64_t value;
-        std::memcpy(&value, &payload[offset], sizeof(int64_t));
-        return value;
-    };
-
-    auto read_uint16_le = [&](size_t offset) -> uint16_t
-    {
-        if (offset + sizeof(uint16_t) > payload.size())
-            return 0;
-        uint16_t value;
-        std::memcpy(&value, &payload[offset], sizeof(uint16_t));
-        return value;
-    };
-
-    auto read_int8 = [&](size_t offset) -> int8_t
-    {
-        if (offset >= payload.size())
-            return 0;
-        int8_t value;
-        std::memcpy(&value, &payload[offset], sizeof(int8_t));
-        return value;
-    };
-
-    auto read_uint8 = [&](size_t offset) -> uint8_t
-    {
-        if (offset >= payload.size())
-            return 0;
-        uint8_t value;
-        std::memcpy(&value, &payload[offset], sizeof(uint8_t));
-        return value;
-    };
-    auto read_bool = [&](size_t offset) -> bool
-    {
-        if (offset >= payload.size())
-            return false;
-        return payload[offset] != 0;
-    };
-
-    uint16_t blockLength = read_uint16_le(0);
-    uint16_t templateId = read_uint16_le(2);
-    uint16_t schemaId = read_uint16_le(4);
-    uint16_t version = read_uint16_le(6);
-
-    size_t offset = 8;
-
-    int64_t eventTime = read_int64_le(offset);
-
-    int64_t firstBookUpdateID = read_int64_le(offset + 8);
-
-    int64_t lastBookUpdateID = read_int64_le(offset + 16);
-
-    int8_t priceExp = read_int8(offset + 24);
-
-    int8_t qtyExp = read_int8(offset + 25);
-
-    double priceScale = std::pow(10.0, priceExp);
-    double qtyScale = std::pow(10.0, qtyExp);
-
-    offset += 26;
-
-    uint16_t bidTradeBlockLength = read_uint16_le(offset);
-    uint16_t numBids = read_uint16_le(offset + 2);
-    offset += 4;
-
-    for (uint8_t t = 0; t < numBids; ++t)
-    {
-        if (offset + bidTradeBlockLength > payload.size())
-            break;
-
-        int64_t priceRaw = read_int64_le(offset);
-        // std::cerr << "[BID] price " << priceRaw * priceScale << std::endl;
-        int64_t qtyRaw = read_int64_le(offset + 8);
-        // std::cerr << "[BID] quantity " << qtyRaw * qtyScale << std::endl;
-
-        double price = priceRaw * priceScale;
-        double qty = qtyRaw * qtyScale;
-
-        *updatesQueue.getNextToWriteTo() = MarketUpdate(Side::BUY, price, qty, eventTime);
-        updatesQueue.updateWriteIndex();
-
-        offset += bidTradeBlockLength;
-    }
-
-    uint16_t askTradeBlockLength = read_uint16_le(offset);
-    uint16_t numAsks = read_uint16_le(offset + 2);
-    offset += 4;
-
-    for (uint8_t t = 0; t < numBids; ++t)
-    {
-        if (offset + askTradeBlockLength > payload.size())
-            break;
-
-        int64_t priceRaw = read_int64_le(offset);
-        // std::cerr << "[ASK] price " << priceRaw * priceScale << std::endl;
-        int64_t qtyRaw = read_int64_le(offset + 8);
-        // std::cerr << "[ASK] quantity " << qtyRaw * qtyScale << std::endl;
-
-        int64_t price = priceRaw * priceScale;
-        int64_t qty = qtyRaw * qtyScale;
-
-        *updatesQueue.getNextToWriteTo() = MarketUpdate(Side::SELL, price, qty, eventTime);
-        updatesQueue.updateWriteIndex();
-
-        offset += bidTradeBlockLength;
-    }
-
-    size_t tradesGroupEnd = offset; // offset points right after last trade
-
-    if (tradesGroupEnd < payload.size())
-    {
-        uint8_t symbolLength = payload[tradesGroupEnd];
-        if (tradesGroupEnd + 1 + symbolLength <= payload.size())
-        {
-            std::string_view symbol(
-                reinterpret_cast<const char *>(&payload[tradesGroupEnd + 1]),
-                symbolLength);
-            std::cerr << "[Symbol] " << symbol << "\n";
-        }
-    }
+    std::printf("--- WS latency (%lu frames) ---\n", (unsigned long)ws_frame_count_);
+    hist_ws_total_.report(ns_per_cycle_);
+    hist_ws_io_   .report(ns_per_cycle_);
+    hist_ws_cpu_  .report(ns_per_cycle_);
+    hist_sbe_     .report(ns_per_cycle_);
+    std::fflush(stdout);
 }
 
 void MarketDataIngester::stopReceiving()

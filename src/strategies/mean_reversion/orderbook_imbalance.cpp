@@ -1,36 +1,27 @@
 #include "strategies/mean_reversion/orderbook_imbalance.h"
+#include <algorithm>
 
 OrderBookImbalance::OrderBookImbalance(OrderBook &ob) : order_book(ob) {}
 
-// double OrderBookImbalance::generate_obi(double askPrice, double askQuantity, double bidPrice, double bidQuantity)
-// {
-//     double part1 = askPrice * bidQuantity;
-//     double part2 = bidPrice * askQuantity;
-//     double part3 = bidQuantity + askQuantity;
-
-//     double midPrice = order_book.getMidPrice();
-//     double microPrice = (part1 + part2) / part3;
-
-//     return microPrice - midPrice;
-// }
-
-double OrderBookImbalance::generate_obi(double askPrice, double askQty,
-                                        double bidPrice, double bidQty)
+int32_t OrderBookImbalance::onMarketData(const MarketUpdate * /*update*/)
 {
-    double spread = askPrice - bidPrice;
-    if (spread <= 0.0)
-        return 0.0;
+    int64_t askPrice = order_book.getBestAskRaw();
+    int64_t askQty   = order_book.getBestAskQtyRaw();
+    int64_t bidPrice = order_book.getBestBidRaw();
+    int64_t bidQty   = order_book.getBestBidQtyRaw();
 
-    double part1 = askPrice * bidQty;
-    double part2 = bidPrice * askQty;
-    double part3 = bidQty + askQty;
-    if (part3 == 0.0)
-        return 0.0;
+    int64_t denom = bidQty + askQty;
+    if (denom == 0) return 0;
 
-    double microPrice = (part1 + part2) / part3;
-    double midPrice = order_book.getMidPrice();
+    // __int128 prevents overflow on price × quantity products
+    __int128 micro128  = (__int128)askPrice * bidQty + (__int128)bidPrice * askQty;
+    int64_t  microPrice = static_cast<int64_t>(micro128 / denom);
 
-    double signal = (microPrice - midPrice) / spread;
-    signal = std::clamp(signal, -3.0, 3.0);
-    return signal / 3.0;
+    int64_t midPrice = order_book.getMidRaw();
+    int64_t spread   = askPrice - bidPrice;
+    if (spread <= 0) return 0;
+
+    return static_cast<int32_t>(
+        std::clamp((microPrice - midPrice) * 1000 / (3 * spread),
+                   (int64_t)-1000, (int64_t)1000));
 }

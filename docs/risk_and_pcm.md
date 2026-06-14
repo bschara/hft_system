@@ -79,24 +79,30 @@ Trades failing pre-trade risk are rejected before reaching the order gateway.
 
 ---
 
-## Position / Capital Model (PCM)
+## Position / Capital Model (PCModel)
 
 **Header:** `include/pcm_model/pcm_model.h`
 **Source:** `src/pcm_model/pcm_model.cpp`
 
-Converts a normalized signal into a concrete `TradeIntent` (price, side, size).
+Converts an integer signal into a concrete `TradeIntent` (price, side, size). This is the **only place in the pipeline where a float conversion occurs**:
 
 ### Signal → Size Mapping
 
 ```cpp
-double strength  = std::min(std::abs(signal), 3.0) / 3.0;  // normalize to [0, 1]
-double allocation = strength * capital_fraction;             // default: 0.02 (2%)
-double size      = (capital * allocation) / mid_price;
+// signal is int32_t in [-1000, 1000]
+double strength   = std::min(std::abs(signal), 1000) / 1000.0;  // → [0.0, 1.0]
+double allocation = strength * capital_fraction;                  // default: 0.02 (2%)
+double size       = (capital * allocation) / mid_price;
 ```
 
 - `capital_fraction = 0.02` limits each trade to at most 2% of available capital
+- `mid_price` comes from `order_book.getMidPrice()` (which internally calls `PriceUtils::to_double(getMidRaw(), price_exp_)`)
 - Size is denominated in base asset units
 - Direction: signal > 0 → BUY, signal < 0 → SELL
+
+### Signal Queue
+
+PCModel consumes `LFQueue<int32_t>` (not `double`). Signals from all strategies are enqueued as raw integers; PCModel is the only component that converts to float.
 
 ### TradeIntent
 
@@ -121,8 +127,8 @@ This is the planned production path once OMS and order gateway are wired.
 ## TradeIntent Flow
 
 ```
-signal (double, [-1, 1])
-    ↓ PCModel::generatetradeIntent()
+signal (int32_t, [-1000, 1000])
+    ↓ PCModel::generatetradeIntent()  — divides by 1000 (only float conversion)
 TradeIntent { price, side, size }
     ↓ RiskModel::checkPreTradeRisk()          [TODO: integrate]
     ↓ TCModel::computeTotalCost()             [TODO: integrate]

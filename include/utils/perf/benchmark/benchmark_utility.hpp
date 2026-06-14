@@ -1,3 +1,5 @@
+#pragma once
+
 inline uint64_t rdtsc_start()
 {
     unsigned int hi, lo;
