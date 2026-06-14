@@ -1,5 +1,5 @@
-#include "utils/stream_config/stream_config.h"
-#include "utils/csv.h"
+#include "utils/config/stream_config/stream_config.h"
+#include "utils/config/csv.h"
 #include <sstream>
 #include <algorithm>
 #include <stdexcept>

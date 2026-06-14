@@ -17,13 +17,14 @@ find_package(simdjson CONFIG REQUIRED)
 find_package(PostgreSQL REQUIRED)
 
 set(SUBMODULE_DIRS
+    src/benchmarks
     src/market_data/order_book
     src/market_data/data_ingester
     src/market_data/historical_data_aggregator
-    src/utils/websocket
-    src/utils/tls_client
-    src/utils/http_client
-    src/utils/stream_config
+    src/utils/net/websocket
+    src/utils/net/tls_client
+    src/utils/net/http_client
+    src/utils/config/stream_config
     src/order_gateway
     src/strategies
     src/pcm_model

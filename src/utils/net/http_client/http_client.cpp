@@ -1,4 +1,4 @@
-#include "utils/http_client/http_client.h"
+#include "utils/net/http_client/http_client.h"
 
 HttpClient::HttpClient()
 {

@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <span>
 #include "market_data/order_book/market_update.h"
-#include "utils/lock_free_queue.hpp"
+#include "utils/containers/lock_free_queue.hpp"
 
 class VenueParser
 {

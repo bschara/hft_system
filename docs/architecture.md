@@ -176,7 +176,7 @@ Pipeline latency is measured in the OBM thread using `rdtsc` fences (no locks, n
 | `strategy` | `rdtsc` around `StrategyManager::onMarketData()` |
 | `obm_total` | Full OBM processing time (dequeue → end of strategy dispatch) |
 
-Each histogram is a 64-bucket log₂ accumulator (`LatencyHistogram` in `include/utils/latency_tracker.hpp`). Every 1,000,000 updates, `OrderBookManager::report_latencies()` prints p50/p99/p999 to stdout. TSC frequency is calibrated against `CLOCK_MONOTONIC` during a 10 ms spin at startup (`Common::calibrate_tsc_ns()`).
+Each histogram is a 64-bucket log₂ accumulator (`LatencyHistogram` in `include/utils/perf/latency_tracker.hpp`). Every 1,000,000 updates, `OrderBookManager::report_latencies()` prints p50/p99/p999 to stdout. TSC frequency is calibrated against `CLOCK_MONOTONIC` during a 10 ms spin at startup (`Common::calibrate_tsc_ns()`).
 
 The ingester stamps `_recv_tsc = rdtsc_start()` once per SBE payload before enqueuing any level — all price levels in a payload share the same ingestion timestamp.
 
@@ -184,6 +184,6 @@ The ingester stamps `_recv_tsc = rdtsc_start()` once per SBE payload before enqu
 
 - Headers in `include/<module>/`, implementations in `src/<module>/`
 - Each module has its own `CMakeLists.txt` producing a static library
-- Header-only utilities: `lock_free_queue.hpp`, `memory_pool.hpp`, `venue_registry.hpp`, `strategy_manager.hpp`, `env_loader.hpp`, `price_utils.hpp`
+- Header-only utilities: `containers/lock_free_queue.hpp`, `containers/memory_pool.hpp`, `venue_registry.hpp`, `strategy_manager.hpp`, `config/env_loader.hpp`, `pricing/price_utils.hpp`
 - `.env` is loaded at startup via `loadEnv()` and must not be committed
 - `exchanges_data.csv` is the single config file for adding instruments — no code changes needed

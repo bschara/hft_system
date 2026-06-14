@@ -5,7 +5,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include "utils/stream_config/stream_config.h"
+#include "utils/config/stream_config/stream_config.h"
 
 // Maps (exchange, symbol) pairs to a packed uint32_t instrument_id.
 // bits[31:16] = venue index, bits[15:0] = symbol index within that venue.

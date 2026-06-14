@@ -1,5 +1,6 @@
-#include "utils/websocket/websocket.h"
+#include "utils/net/websocket/websocket.h"
 #include "helper.hpp"
+#include "utils/perf/benchmark/benchmark_utility.hpp"
 
 namespace utility
 {
@@ -182,6 +183,8 @@ namespace utility
             if (!recv_exact(recv_buf.data() + offset, payload_len))
                 return std::nullopt;
         }
+
+        last_io_done_tsc_ = rdtsc_end();
 
         uint8_t *payload_ptr = recv_buf.data() + offset;
 

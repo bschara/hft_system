@@ -1,5 +1,5 @@
 #include "market_data/data_ingester/sbe_decoder.h"
-#include "utils/benchmark/benchmark_utility.hpp"
+#include "utils/perf/benchmark/benchmark_utility.hpp"
 #include <cstring>
 #include <iostream>
 
@@ -116,4 +116,34 @@ size_t SBEDecoder::decode(std::span<const uint8_t>      msg,
     }
 
     return asks_end + 1 + symLen; // total bytes consumed
+}
+
+size_t SBEDecoder::measure(std::span<const uint8_t> msg, const MessageSchema &schema)
+{
+    if (msg.size() < 8) return 0;
+    size_t offset = 8 + schema.fixed_block_size;
+
+    for (uint8_t g = 0; g < schema.num_groups; ++g) {
+        if (offset + 4 > msg.size()) return 0;
+        uint16_t blockLen = read_le<uint16_t>(msg, offset);
+        size_t   count;
+        size_t   hdr;
+        if (schema.group_num_encoding == GroupNumEncoding::UINT32) {
+            if (offset + 6 > msg.size()) return 0;
+            count = static_cast<size_t>(read_le<uint32_t>(msg, offset + 2));
+            hdr   = 6;
+        } else {
+            count = static_cast<size_t>(read_le<uint16_t>(msg, offset + 2));
+            hdr   = 4;
+        }
+        offset += hdr + static_cast<size_t>(blockLen) * count;
+    }
+
+    for (uint8_t v = 0; v < schema.num_vardata; ++v) {
+        if (offset >= msg.size()) return 0;
+        uint8_t len = msg[offset];
+        offset += 1 + len;
+    }
+
+    return offset;
 }

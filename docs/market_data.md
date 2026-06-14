@@ -75,39 +75,52 @@ struct MessageSchema {
 };
 ```
 
-The Binance depth schema is a `constexpr` defined in the header (`kBinanceDepthV1`). Adding a new schema means filling in a new `MessageSchema` struct — no parser code changes.
+Four Binance schemas are defined as `constexpr` in the header. Adding a new schema means filling in a new `MessageSchema` struct — no parser code changes.
+
+| Constant | templateId | Stream | skip |
+|---|---|---|---|
+| `kBinanceDepthDiff` | 10003 | `depth@<sym>` | No |
+| `kBinanceDepthSnapshot` | 10002 | `depth<N>@<sym>` | No |
+| `kBinanceBestBidAsk` | 10001 | `bookTicker@<sym>` | Yes |
+| `kBinanceTrades` | 10000 | `trade@<sym>` | Yes |
+
+`skip = true` schemas allow the parser to advance past messages with different group structures (trades use `groupSizeEncoding` with a uint32 count; best-bid-ask has no groups at all) without enqueuing garbage updates.
 
 ### SchemaRegistry (`data_ingester/schema_registry.h`)
 
 Maps `templateId → MessageSchema`. Header-only, constructed at startup:
 ```cpp
 SchemaRegistry binance_schemas;
-binance_schemas.registerSchema(kBinanceDepthV1);
+binance_schemas.registerSchema(kBinanceDepthDiff);
+binance_schemas.registerSchema(kBinanceDepthSnapshot);
+binance_schemas.registerSchema(kBinanceBestBidAsk);
+binance_schemas.registerSchema(kBinanceTrades);
 ```
 
 ### SBEDecoder (`data_ingester/sbe_decoder.h`)
 
 Stateless pure decoder. The Binance SBE wire format is:
 
+DepthDiffStreamEvent (templateId=10003) wire layout:
 ```
 [SBE header: 8 bytes]
-  uint16 blockLength, templateId, schemaId, version
+  uint16 blockLength, templateId=10003, schemaId=1, version
 
 [Fixed block: 26 bytes]
-  int64  eventTime            ← normalised to microseconds
-  int64  firstBookUpdateID
-  int64  lastBookUpdateID
-  int8   priceExponent        ← shared across all levels in this message
+  int64  eventTime (utcTimestampUs)  ← microseconds, stored as-is
+  int64  firstBookUpdateId
+  int64  lastBookUpdateId
+  int8   priceExponent               ← shared across all levels in this message
   int8   qtyExponent
 
-[Bid group]
+[Bid group  — groupSize16Encoding]
   uint16 bidBlockLength
   uint16 numBids
   for each bid:
-    int64 priceRaw            ← stored as-is in MarketUpdate._price
+    int64 priceRaw                   ← stored as-is in MarketUpdate._price
     int64 qtyRaw
 
-[Ask group]
+[Ask group  — groupSize16Encoding]
   uint16 askBlockLength
   uint16 numAsks
   for each ask:
@@ -116,8 +129,10 @@ Stateless pure decoder. The Binance SBE wire format is:
 
 [Trailing symbol field]
   uint8  symbolLength
-  char[] symbolName           ← e.g. "BTCUSDT"
+  char[] symbolName                  ← e.g. "BTCUSDT"
 ```
+
+DepthSnapshotStreamEvent (templateId=10002) has the same group layout but a shorter fixed block (18 bytes): `eventTime(8) + bookUpdateId(8) + priceExp(1) + qtyExp(1)`, with `price_exp_offset=16` and `qty_exp_offset=17`.
 
 `SBEDecoder::decode()` pre-scans to the trailing symbol field, resolves `instrument_id` via `VenueRegistry`, then enqueues one `MarketUpdate` per level. Returns bytes consumed so the outer loop can advance the cursor. **No floating-point arithmetic.**
 
@@ -144,20 +159,31 @@ public:
 
 ### MarketDataIngester (`data_ingester/market_data_ingester.h`)
 
-Thin shell — WebSocket receive loop only:
+WebSocket receive loop with built-in per-stage latency histograms:
 
 ```cpp
 MarketDataIngester ingester(binance_queue, tls_client, web_socket, binance_parser);
+ingester.set_ns_per_cycle(ns_per_cycle);  // call before thread launch
 ingester.startReceiving("/stream?streams=btcusdt@depth/ethusdt@depth", "");
 ```
 
-On each binary frame, calls `parser_.parse(frame->payload, updatesQueue)`. No SBE awareness in the ingester itself.
+On each binary frame, calls `parser_.parse(frame->payload, updatesQueue)`. Reports four histograms every 10,000 frames:
+
+| Histogram | Measures |
+|-----------|----------|
+| `ws_frame_tot` | Full `read_frame()` wall time (I/O + CPU) |
+| `ws_io` | Time blocked in `SSL_read` waiting for bytes — `rdtsc_start` to `ws.io_done_tsc()` |
+| `ws_cpu` | Mask XOR + opcode check + frame construction — `io_done_tsc()` to `read_frame()` return |
+| `sbe_decode` | `parser_.parse()` wall time — SBE decode + enqueue |
 
 ### Full Startup Wiring
 
 ```cpp
 SchemaRegistry binance_schemas;
-binance_schemas.registerSchema(kBinanceDepthV1);
+binance_schemas.registerSchema(kBinanceDepthDiff);      // depth@<sym>  — full decode
+binance_schemas.registerSchema(kBinanceDepthSnapshot);  // depth<N>@<sym> — full decode
+binance_schemas.registerSchema(kBinanceBestBidAsk);     // bookTicker   — skip (no groups)
+binance_schemas.registerSchema(kBinanceTrades);         // trade        — skip (uint32 group count)
 
 SBEVenueParser binance_parser(std::move(binance_schemas), registry, "BINANCE");
 
@@ -275,7 +301,7 @@ obm.set_strategy_manager(&strategy_manager);
 
 ## Price Utilities
 
-**Header:** `include/utils/price_utils.hpp` (header-only)
+**Header:** `include/utils/pricing/price_utils.hpp` (header-only)
 
 For display, logging, and PCModel output only — **never called on the hot path**:
 
@@ -309,7 +335,7 @@ Status: partially implemented.
 
 ## Stream Configuration
 
-**Header:** `include/utils/stream_config/stream_config.h`
+**Header:** `include/utils/config/stream_config/stream_config.h`
 
 Loads `exchanges_data.csv` and builds the Binance combined stream WebSocket URL.
 

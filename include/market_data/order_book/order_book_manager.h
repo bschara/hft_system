@@ -4,8 +4,8 @@
 #include <vector>
 #include <cstdint>
 #include "order_book.h"
-#include "utils/lock_free_queue.hpp"
-#include "utils/latency_tracker.hpp"
+#include "utils/containers/lock_free_queue.hpp"
+#include "utils/perf/latency_tracker.hpp"
 
 class StrategyManager;
 

@@ -25,8 +25,13 @@ void SBEVenueParser::parse(std::span<const uint8_t>      payload,
             break;
         }
 
-        size_t consumed = SBEDecoder::decode(payload.subspan(cursor), *schema,
-                                             queue, registry_, venue_name_);
+        size_t consumed;
+        if (schema->skip) {
+            consumed = SBEDecoder::measure(payload.subspan(cursor), *schema);
+        } else {
+            consumed = SBEDecoder::decode(payload.subspan(cursor), *schema,
+                                         queue, registry_, venue_name_);
+        }
         if (consumed == 0) break;
         cursor += consumed;
     }

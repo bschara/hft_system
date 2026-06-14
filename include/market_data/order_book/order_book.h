@@ -5,8 +5,8 @@
 #include <cmath>
 #include <iostream>
 #include "market_update.h"
-#include "utils/lock_free_queue.hpp"
-#include "utils/price_utils.hpp"
+#include "utils/containers/lock_free_queue.hpp"
+#include "utils/pricing/price_utils.hpp"
 
 constexpr int     LOB_DEPTH      = 256;
 constexpr int64_t TICK_UNITS     = 1;      // one raw integer unit = 1 tick

@@ -3,13 +3,13 @@
 #include <string>
 #include <thread>
 
-#include "utils/env_loader.hpp"
-#include "utils/stream_config/stream_config.h"
+#include "utils/config/env_loader.hpp"
+#include "utils/config/stream_config/stream_config.h"
 #include "market_data/venue_registry.hpp"
-#include "utils/lock_free_queue.hpp"
-#include "utils/tls_client/tls_client.h"
-#include "utils/websocket/websocket.h"
-#include "utils/latency_tracker.hpp"
+#include "utils/containers/lock_free_queue.hpp"
+#include "utils/net/tls_client/tls_client.h"
+#include "utils/net/websocket/websocket.h"
+#include "utils/perf/latency_tracker.hpp"
 
 #include "market_data/order_book/order_book_manager.h"
 #include "market_data/data_ingester/message_schema.h"
@@ -85,7 +85,10 @@ int main()
 
     // --- Binance schema + parser ---
     SchemaRegistry binance_schemas;
-    binance_schemas.registerSchema(kBinanceDepthV1);
+    binance_schemas.registerSchema(kBinanceDepthDiff);      // depth@<sym>
+    binance_schemas.registerSchema(kBinanceDepthSnapshot);  // depth<N>@<sym>
+    binance_schemas.registerSchema(kBinanceBestBidAsk);     // bookTicker@<sym> (skip)
+    binance_schemas.registerSchema(kBinanceTrades);         // trade@<sym>      (skip)
 
     SBEVenueParser binance_parser(std::move(binance_schemas), registry, "BINANCE");
 
@@ -93,10 +96,14 @@ int main()
     std::string full_url     = config.buildBinanceURL();
     std::string binance_path = full_url.substr(full_url.find("/stream?"));
 
-    utility::TLSClient binance_tls("stream.binance.com", 9443);
-    utility::WebSocket binance_ws(binance_tls, "stream.binance.com", "");
+    const char *api_key_env = std::getenv("BINANCE_API_KEY");
+    std::string binance_api_key = api_key_env ? api_key_env : "";
+
+    utility::TLSClient binance_tls("stream-sbe.binance.com", 9443);
+    utility::WebSocket binance_ws(binance_tls, "stream-sbe.binance.com", binance_api_key);
 
     MarketDataIngester binance_ingester(binance_queue, binance_tls, binance_ws, binance_parser);
+    binance_ingester.set_ns_per_cycle(ns_per_cycle);
 
     // --- Launch threads ---
     std::thread obm_thread([&] { obm.run(); });

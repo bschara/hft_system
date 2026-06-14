@@ -54,7 +54,7 @@ exchanges_data.csv  ──→  StreamConfig  ──→  VenueRegistry
 - **Circular buffer order book** — 256-level LOB with O(1) update, integer tick-arithmetic indexing; zero-quantity removal and sparse-book protection built in
 - **Schema-driven SBE decoder** — `MessageSchema` (pure byte-offset map) + `SchemaRegistry` (templateId → schema) + stateless `SBEDecoder`; `SBEVenueParser` outer loop handles multi-message frames; `VenueParser` interface makes adding new venues trivial
 - **Per-symbol strategy dispatch** — `StrategyManager` routes each market update only to strategies registered for that instrument; three strategies active per symbol (MidPriceReversion, OrderBookImbalance, MicroMomentum), producing three signals per update
-- **Pipeline latency measurement** — Per-stage nanosecond histograms (queue wait, book update, strategy dispatch, OBM total) using rdtsc; TSC calibrated to wall-clock at startup; p50/p99/p999 reported every 1M updates
+- **Pipeline latency measurement** — Per-stage nanosecond histograms at every level: WebSocket I/O vs CPU (`ws_io`, `ws_cpu`), SBE decode (`sbe_decode`), queue wait, book update, strategy dispatch, OBM total; rdtsc with CPUID fences; p50/p99/p999 reported periodically
 - **Transaction cost model** — Spread, slippage, and market impact estimation before order submission
 - **Pre-trade risk checks** — Position limits, notional exposure, leverage, and trade size guards
 - **Memory pool** — Pre-allocated object pool to avoid heap allocation on the hot path
@@ -92,18 +92,12 @@ hft_system/
 │   │   └── trend_following/
 │   └── utils/
 │       ├── CLAUDE.md                   # Utils module context
-│       ├── lock_free_queue.hpp         # SPSC ring buffer (header-only)
-│       ├── memory_pool.hpp             # Pre-allocated pool (header-only)
-│       ├── env_loader.hpp              # .env file loader (header-only)
-│       ├── latency_tracker.hpp         # Log2 histogram + TSC calibration (header-only)
-│       ├── price_utils.hpp             # PriceUtils::to_double() / to_string() — display only
-│       ├── stream_config/              # CSV parser + URL builder
-│       ├── websocket/
-│       ├── tls_client/
-│       ├── http_client/
-│       ├── benchmark/                  # rdtsc_start / rdtsc_end fences
-│       ├── macros.h
-│       └── types.h
+│       ├── core/                       # macros.h (LIKELY/UNLIKELY/ASSERT), types.h
+│       ├── containers/                 # lock_free_queue.hpp (SPSC), memory_pool.hpp
+│       ├── config/                     # env_loader.hpp, csv.h, stream_config/
+│       ├── perf/                       # latency_tracker.hpp, benchmark/ (rdtsc fences)
+│       ├── pricing/                    # price_utils.hpp — display only, never hot path
+│       └── net/                        # tls_client/, websocket/, http_client/
 ├── src/
 │   ├── CLAUDE.md                       # Build conventions
 │   ├── main.cpp                        # Entry point — wires all components
@@ -114,7 +108,9 @@ hft_system/
 │   ├── risk_management/
 │   ├── tcm_model/
 │   ├── order_gateway/
-│   └── oms/
+│   ├── oms/
+│   └── benchmarks/
+│       └── websocket_bench.cpp         # WsBench: live WS latency + CPU microbenchmarks
 ├── docs/                               # Extended documentation
 └── tests/
     ├── CMakeLists.txt                  # FetchContent GoogleTest
@@ -248,7 +244,7 @@ Tests live under `tests/`. Current coverage:
 | Order Management System          | Stub                                                      |
 | FIX order gateway                | Partial (Ed25519 signing done, FIX session commented out) |
 | Main entry point / thread wiring | Complete — all components wired, threads launched         |
-| Pipeline latency measurement     | Complete — per-stage rdtsc histograms, p50/p99/p999 output |
+| Pipeline latency measurement     | Complete — WS I/O/CPU split + SBE decode + OBM stages; standalone `WsBench` binary |
 
 ## Docs
 

@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <vector>
 #include <strategies/strategy.h>
-#include "utils/lock_free_queue.hpp"
+#include "utils/containers/lock_free_queue.hpp"
 
 class StrategyManager
 {

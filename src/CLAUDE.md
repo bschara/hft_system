@@ -2,23 +2,24 @@
 
 ## CMake Library Targets
 
-Each subdirectory under `src/` is a separately-compiled static library with its own `CMakeLists.txt`. The root `CMakeLists.txt` adds all subdirectories via `add_subdirectory()` and links selected targets into `MainExec`.
+Each subdirectory under `src/` is a separately-compiled static library (or executable) with its own `CMakeLists.txt`. The root `CMakeLists.txt` adds all subdirectories via `add_subdirectory()` and links selected targets into `MainExec`.
 
 | Target | Sources | Notes |
 |--------|---------|-------|
 | `OrderBook` | `order_book.cpp`, `order_book_manager.cpp` | Both in same library; OBM uses OrderBook types directly |
-| `MarketDataIngester` | `market_data_ingester.cpp`, `sbe_decoder.cpp`, `sbe_venue_parser.cpp` | Links against `OrderBook`, `WebSocket`; `SBEDecoder` + `SBEVenueParser` compiled in |
+| `MarketDataIngester` | `market_data_ingester.cpp`, `sbe_decoder.cpp`, `sbe_venue_parser.cpp` | WebSocket recv loop with ws_io/ws_cpu/sbe_decode histograms; `set_ns_per_cycle()` must be called before thread launch |
 | `MidPriceReversion` | `mean_reversion/midprice_reversion.cpp` | |
 | `OrderBookImbalance` | `mean_reversion/orderbook_imbalance.cpp` | |
 | `MicroMomentum` | `trend_following/micro_momentum.cpp` | |
 | `TLSClient` | `tls_client.cpp` | Links OpenSSL |
-| `WebSocket` | `websocket.cpp` | Links TLSClient |
+| `WebSocket` | `websocket.cpp` | Stamps `last_io_done_tsc_` after final recv_exact; readable via `io_done_tsc()` |
 | `StreamConfig` | `stream_config.cpp` | Links csv.h (header-only) |
 | `HttpClient` | `http_client.cpp` | Links libcurl |
 | `PCModel` | `pcm_model.cpp` | |
 | `OrderGateway` | `order_gateway.cpp` | Links QuickFIX (submodule at `/workspace/quickfix`) |
 | `HistoricalDataAggergator` | `historical_aggregator.cpp` | Links libpq (PostgreSQL) |
 | `OrderManagementSystem` | `order_management_system.cpp` | Stub |
+| `WsBench` *(executable)* | `benchmarks/websocket_bench.cpp` | Standalone benchmark: live WS latency + CPU microbenchmarks (mask, header decode) |
 
 ## Adding a New Submodule
 
@@ -62,5 +63,5 @@ These need no CMake library target and are included directly.
 2. Construct one `LFQueue<MarketUpdate>` per venue; construct `LFQueue<int32_t>` for signals (capacity 8192)
 3. Construct `OrderBookManager`, register instruments, call `add_queue()` for each venue queue
 4. Construct `StrategyManager`; register all three strategy types (`MidPriceReversion`, `OrderBookImbalance`, `MicroMomentum`) per symbol
-5. Construct `SchemaRegistry` + `SBEVenueParser` for each venue; construct per-venue `TLSClient` + `WebSocket` + `MarketDataIngester`
+5. Construct `SchemaRegistry` + `SBEVenueParser` for each venue; construct per-venue `TLSClient` + `WebSocket` + `MarketDataIngester`; call `ingester.set_ns_per_cycle(ns_per_cycle)` before thread launch
 6. Launch threads (OBM thread, one ingester thread per venue)

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils/lock_free_queue.hpp"
+#include "utils/containers/lock_free_queue.hpp"
 
 class OrderManagementSystem
 {

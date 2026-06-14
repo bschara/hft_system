@@ -73,21 +73,24 @@ public:
 
 **`SBEDecoder`** (`sbe_decoder.h`) — stateless decoder: reads raw integer prices and quantities directly from the SBE binary layout described by `MessageSchema`. No float arithmetic. Returns bytes consumed per message.
 
-**`MessageSchema`** (`message_schema.h`) — pure data: field byte-offsets, encoding types, and timestamp units for a single SBE templateId. The Binance depth schema is defined as `constexpr kBinanceDepthV1`.
+**`MessageSchema`** (`message_schema.h`) — pure data: field byte-offsets, encoding types, timestamp units, group structure metadata, and a `skip` flag for a single SBE templateId. Four Binance schemas are defined as `constexpr`: `kBinanceDepthDiff` (10003), `kBinanceDepthSnapshot` (10002), `kBinanceBestBidAsk` (10001, skip=true), `kBinanceTrades` (10000, skip=true). Skip schemas allow `SBEVenueParser` to advance past messages with incompatible group structures via `SBEDecoder::measure()`.
 
 **`MarketDataIngester`** (`market_data_ingester.h`) — thin shell: TLS + WebSocket receive loop; delegates every binary frame to `VenueParser::parse()`.
 
 ### Constructor / startup:
 ```cpp
 SchemaRegistry binance_schemas;
-binance_schemas.registerSchema(kBinanceDepthV1);
+binance_schemas.registerSchema(kBinanceDepthDiff);
+binance_schemas.registerSchema(kBinanceDepthSnapshot);
+binance_schemas.registerSchema(kBinanceBestBidAsk);  // skip=true
+binance_schemas.registerSchema(kBinanceTrades);       // skip=true
 
 SBEVenueParser binance_parser(std::move(binance_schemas), registry, "BINANCE");
 MarketDataIngester ingester(binance_queue, tls, ws, binance_parser);
 ingester.startReceiving("/stream?streams=btcusdt@depth/ethusdt@depth", "");
 ```
 
-## Price Utilities (`utils/price_utils.hpp`)
+## Price Utilities (`utils/pricing/price_utils.hpp`)
 
 For logging, display, and PCModel output only — never on the hot path:
 ```cpp

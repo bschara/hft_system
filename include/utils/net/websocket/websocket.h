@@ -3,7 +3,7 @@
 #include <vector>
 #include <stdint.h>
 #include <optional>
-#include "utils/tls_client/tls_client.h"
+#include "utils/net/tls_client/tls_client.h"
 #include <sstream>
 #include <iostream>
 #include <iomanip>
@@ -35,6 +35,8 @@ namespace utility
         void mask_payload(uint8_t *data, size_t len, const uint8_t mask[4]);
         bool recv_exact(uint8_t *dst, size_t len);
 
+        uint64_t io_done_tsc() const noexcept { return last_io_done_tsc_; }
+
     private:
         TLSClient &tls;
         std::string host;
@@ -42,5 +44,6 @@ namespace utility
         std::string websocket_key;
         std::vector<uint8_t> send_buf;
         std::vector<uint8_t> recv_buf;
+        uint64_t last_io_done_tsc_ = 0;
     };
 }
